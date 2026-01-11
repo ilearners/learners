@@ -86,6 +86,9 @@ end)
 local function CreateESP(player)
     if player == LocalPlayer or ESPData[player] then return end
 
+    local character = player.Character
+    if not character then return end
+
     local data = {
         Highlight = Instance.new("Highlight"),
         Billboard = Instance.new("BillboardGui"),
@@ -94,21 +97,21 @@ local function CreateESP(player)
     }
 
     -- Highlight setup
-    data.Highlight.Adornee = player.Character
+    data.Highlight.Adornee = character
     data.Highlight.Enabled = false
     data.Highlight.FillColor = Color3.new(1, 0, 0)
     data.Highlight.OutlineColor = Color3.new(1, 0, 0)
     data.Highlight.FillTransparency = 0.5
     data.Highlight.OutlineTransparency = 0
     data.Highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    data.Highlight.Parent = player.Character or workspace
+    data.Highlight.Parent = character
 
     -- Billboard setup
     data.Billboard.Size = UDim2.new(0, 200, 0, 60)
     data.Billboard.StudsOffset = Vector3.new(0, 3, 0)
     data.Billboard.AlwaysOnTop = true
     data.Billboard.Enabled = false
-    data.Billboard.Parent = data.Highlight
+    data.Billboard.Parent = character
 
     -- Name label
     data.NameLabel.Size = UDim2.new(1, 0, 0.5, 0)
