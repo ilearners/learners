@@ -129,8 +129,8 @@ local function loadWithTimeout(url: string, timeout: number?)
 end
 
 -- Try to load small scripts (icons/prompt) only when not in Studio
-local Icons = useStudio and (script.Parent:FindFirstChild("icons") and require(script.Parent.icons)) or loadWithTimeout("https://raw.githubusercontent.com/SiriusSoftwareLtd/Rayfield/refs/heads/main/icons.lua")
-local prompt = useStudio and (script.Parent:FindFirstChild("prompt") and require(script.Parent.prompt)) or loadWithTimeout('https://raw.githubusercontent.com/SiriusSoftwareLtd/Sirius/refs/heads/request/prompt.lua')
+local Icons = useStudio and (script.Parent:FindFirstChild("icons") and require(script.Parent.icons)) or loadWithTimeout("https://raw.githubusercontent.com/ilearners/learners/refs/heads/main/icons.lua")
+local prompt = useStudio and (script.Parent:FindFirstChild("prompt") and require(script.Parent.prompt)) or loadWithTimeout('https://raw.githubusercontent.com/ilearners/learners/refs/heads/main/prompt.lua')
 if not prompt then
 	prompt = { create = function() end } -- no-op fallback
 end
