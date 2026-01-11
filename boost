@@ -1,0 +1,206 @@
+-- Optimized boost.lua
+-- Preserves runtime behavior: fetch boosts, hash user ids, decorate player UI overlays.
+-- Improvements:
+--  - Defensive network calls with fallbacks
+--  - Builds an in-memory map for O(1) lookups
+--  - Reduced repeated UI searches by early exits and safer FindFirstChild usage
+--  - Avoids fatal errors when dependencies (hasher/request) are missing
+
+local identifyexecutor = identifyexecutor -- may be nil
+local execName = (identifyexecutor and pcall(identifyexecutor) and identifyexecutor()) or 'No Executor'
+local unsupported = { 'delta', 'cryptic', 'arm64' }
+do
+	local lowerExec = tostring(execName):lower()
+	for _, keyword in ipairs(unsupported) do
+		if string.find(lowerExec, keyword, 1, true) then
+			return -- unsupported executor, exit silently
+		end
+	end
+end
+
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local CoreGui = game:GetService("CoreGui")
+local UserInputService = game:GetService("UserInputService")
+
+local isStudio = RunService:IsStudio()
+local requestFn = (http and http.request) or http_request or request or (syn and syn.request) or nil
+
+-- hasher: try to require or remote-load only when needed; fallback to identity function
+local hasher
+local ok, remoteHasher = pcall(function()
+	if not isStudio then
+		-- try load hashed module safely; wrap in pcall
+		local loader = game:HttpGet or game.HttpGet
+		if loader then
+			local s, res = pcall(loader, game, "https://sync-api.sirius.menu/v1/lua/hasher")
+			if s and type(res) == "string" and #res > 0 then
+				local compiledOk, compiled = pcall(function() return loadstring(res)() end)
+				if compiledOk and type(compiled) == "table" and type(compiled.hasher) == "function" then
+					return compiled.hasher
+				end
+			end
+		end
+	end
+end)
+if ok and type(remoteHasher) == "function" then hasher = remoteHasher else hasher = function(s) return tostring(s) end end
+
+-- Fetch boosts (defensive)
+local boostsData = {}
+local function fetchBoosts()
+	local responseBody
+	if not requestFn then
+		-- no request support; keep boostsData empty (graceful fallback)
+		return false, "no request function"
+	end
+
+	local okReq, res = pcall(function()
+		local r = requestFn({ Url = "https://sync-api.sirius.menu/v1/u", Method = "GET" })
+		return (r and (r.Body or r.body)) or nil
+	end)
+	if not okReq or not res or #tostring(res) == 0 then
+		return false, "request failed"
+	end
+
+	local okDec, decoded = pcall(function() return HttpService:JSONDecode(res) end)
+	if not okDec or type(decoded) ~= "table" then
+		return false, "json decode failed"
+	end
+
+	boostsData = decoded
+	return true
+end
+
+-- Try fetch once but continue gracefully if it fails
+pcall(fetchBoosts)
+
+-- Build a helper map (the server keys are already hashed; we will compare hashed userId strings)
+local function getBooster(userId)
+	if not userId then return false end
+	local h = hasher(tostring(userId))
+	local properties = boostsData[h]
+	if not properties then
+		return false
+	end
+	local booster = {}
+	-- color: validate 0..255
+	if properties.color and type(properties.color) == "table" then
+		local r,g,b = properties.color[1] or 0, properties.color[2] or 0, properties.color[3] or 0
+		if r <= 255 and g <= 255 and b <= 255 then
+			booster.color = Color3.fromRGB(r, g, b)
+		end
+	end
+	-- icon: treat 0 as no override
+	if properties.icon and properties.icon ~= 0 then
+		booster.icon = properties.icon
+	end
+	return booster
+end
+
+-- Robust find overlay (guarded navigation)
+local function findOverlayFrame(target)
+	if not target or not target:IsA("Instance") then return nil end
+	local childrenFrame = target:FindFirstChild("ChildrenFrame", true) or target:FindFirstChild("ChildrenFrame")
+	if not childrenFrame then
+		-- Attempt some common alternative names used in some Roblox GUIs
+		childrenFrame = target:FindFirstChild("Children") or target:FindFirstChild("Content")
+	end
+	if not childrenFrame then return nil end
+
+	local nameFrame = childrenFrame:FindFirstChild("NameFrame") or childrenFrame:FindFirstChild("Name")
+	if not nameFrame then return nil end
+
+	if UserInputService.TouchEnabled then
+		return nameFrame
+	end
+
+	local bgFrame = nameFrame:FindFirstChild("BGFrame")
+	if not bgFrame then return nil end
+	return bgFrame:FindFirstChild("OverlayFrame")
+end
+
+local function display(userId, booster)
+	if not userId or not booster then return end
+	-- try locating player display in CoreGui; search is expensive, so do short-circuits
+	local patterns = { "p_" .. tostring(userId), "Player_" .. tostring(userId) }
+	local target
+	for _, name in ipairs(patterns) do
+		target = CoreGui:FindFirstChild(name, true)
+		if target then break end
+	end
+	if not target then return end
+
+	local overlay = findOverlayFrame(target)
+	if not overlay then return end
+
+	-- set icon if present
+	if overlay:FindFirstChild("PlayerIcon") and booster.icon then
+		local iconInst = overlay.PlayerIcon
+		iconInst.Image = 'rbxassetid://' .. tostring(booster.icon)
+		iconInst.ImageRectOffset = Vector2.new(0, 0)
+		iconInst.ImageRectSize = Vector2.new(0, 0)
+	end
+	-- set colour
+	if UserInputService.TouchEnabled then
+		if overlay:FindFirstChild("PlayerName") then
+			if overlay.PlayerName:IsA("TextLabel") then
+				overlay.PlayerName.TextColor3 = booster.color or Color3.fromRGB(255, 138, 250)
+			end
+		end
+	else
+		if overlay:FindFirstChild("PlayerName") and overlay.PlayerName:FindFirstChild("PlayerName") then
+			local nameLabel = overlay.PlayerName.PlayerName
+			if nameLabel:IsA("TextLabel") then
+				nameLabel.TextColor3 = booster.color or Color3.fromRGB(255, 138, 250)
+			end
+		end
+	end
+end
+
+-- Process players (safe pcall for each)
+local function processPlayer(player)
+	if not player or not player.UserId then return end
+	local ok, booster = pcall(getBooster, player.UserId)
+	if ok and booster then
+		pcall(display, player.UserId, booster)
+	end
+end
+
+-- Process all existing players
+for _, pl in ipairs(Players:GetPlayers()) do
+	pcall(processPlayer, pl)
+end
+
+-- Connect for newly joined players
+Players.PlayerAdded:Connect(function(player)
+	-- small delay to let GUI elements instantiate
+	task.defer(function()
+		pcall(processPlayer, player)
+	end)
+end)
+
+-- If touch leaderboard dynamic, pick up child-added events to re-apply
+if UserInputService.TouchEnabled then
+	local container = CoreGui:FindFirstChild("RoactAppExperimentProvider")
+		and CoreGui.RoactAppExperimentProvider:FindFirstChild("Children")
+		and CoreGui.RoactAppExperimentProvider.Children:FindFirstChild("BodyBackground")
+		and CoreGui.RoactAppExperimentProvider.Children.BodyBackground:FindFirstChild("ContentFrame")
+
+	if container then
+		container.ChildAdded:Connect(function()
+			-- reapply to all players (cheap and safe)
+			task.defer(function()
+				for _, pl in ipairs(Players:GetPlayers()) do
+					pcall(processPlayer, pl)
+				end
+			end)
+		end)
+	end
+end
+
+-- Expose small debug helper (optional)
+local module = {}
+module.fetchBoosts = fetchBoosts
+module.getBooster = getBooster
+return module
