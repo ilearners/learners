@@ -23,7 +23,7 @@ local HitboxFolder = Instance.new("Folder")
 HitboxFolder.Name = "AxiosHitboxContainer"
 HitboxFolder.Parent = workspace
 
--- // RESTORED ORIGINAL GUI // --
+-- Create GUI
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "HitboxExtenderGUI"
 ScreenGui.ResetOnSpawn = false
@@ -57,6 +57,7 @@ local TitleCorner = Instance.new("UICorner")
 TitleCorner.CornerRadius = UDim.new(0, 8)
 TitleCorner.Parent = Title
 
+-- Status Label
 local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Size = UDim2.new(1, -20, 0, 30)
 StatusLabel.Position = UDim2.new(0, 10, 0, 50)
@@ -84,15 +85,23 @@ local SizeSlider = Instance.new("TextButton")
 SizeSlider.Size = UDim2.new(1, -20, 0, 20)
 SizeSlider.Position = UDim2.new(0, 10, 0, 120)
 SizeSlider.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+SizeSlider.BorderSizePixel = 0
 SizeSlider.Text = ""
 SizeSlider.Parent = MainFrame
-Instance.new("UICorner", SizeSlider).CornerRadius = UDim.new(0, 4)
+
+local SliderCorner = Instance.new("UICorner")
+SliderCorner.CornerRadius = UDim.new(0, 4)
+SliderCorner.Parent = SizeSlider
 
 local SliderFill = Instance.new("Frame")
 SliderFill.Size = UDim2.new(0.5, 0, 1, 0)
 SliderFill.BackgroundColor3 = Color3.fromRGB(100, 150, 255)
+SliderFill.BorderSizePixel = 0
 SliderFill.Parent = SizeSlider
-Instance.new("UICorner", SliderFill).CornerRadius = UDim.new(0, 4)
+
+local FillCorner = Instance.new("UICorner")
+FillCorner.CornerRadius = UDim.new(0, 4)
+FillCorner.Parent = SliderFill
 
 -- Transparency Slider
 local TransLabel = Instance.new("TextLabel")
@@ -110,17 +119,25 @@ local TransSlider = Instance.new("TextButton")
 TransSlider.Size = UDim2.new(1, -20, 0, 20)
 TransSlider.Position = UDim2.new(0, 10, 0, 180)
 TransSlider.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+TransSlider.BorderSizePixel = 0
 TransSlider.Text = ""
 TransSlider.Parent = MainFrame
-Instance.new("UICorner", TransSlider).CornerRadius = UDim.new(0, 4)
+
+local TransCorner = Instance.new("UICorner")
+TransCorner.CornerRadius = UDim.new(0, 4)
+TransCorner.Parent = TransSlider
 
 local TransFill = Instance.new("Frame")
 TransFill.Size = UDim2.new(0.5, 0, 1, 0)
 TransFill.BackgroundColor3 = Color3.fromRGB(100, 150, 255)
+TransFill.BorderSizePixel = 0
 TransFill.Parent = TransSlider
-Instance.new("UICorner", TransFill).CornerRadius = UDim.new(0, 4)
 
--- Buttons
+local TransFillCorner = Instance.new("UICorner")
+TransFillCorner.CornerRadius = UDim.new(0, 4)
+TransFillCorner.Parent = TransFill
+
+-- Team Check Toggle
 local TeamCheckBtn = Instance.new("TextButton")
 TeamCheckBtn.Size = UDim2.new(1, -20, 0, 35)
 TeamCheckBtn.Position = UDim2.new(0, 10, 0, 215)
@@ -128,9 +145,14 @@ TeamCheckBtn.BackgroundColor3 = Color3.fromRGB(100, 200, 100)
 TeamCheckBtn.Text = "Team Check: ON"
 TeamCheckBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 TeamCheckBtn.Font = Enum.Font.GothamBold
+TeamCheckBtn.TextSize = 14
 TeamCheckBtn.Parent = MainFrame
-Instance.new("UICorner", TeamCheckBtn).CornerRadius = UDim.new(0, 6)
 
+local TeamBtnCorner = Instance.new("UICorner")
+TeamBtnCorner.CornerRadius = UDim.new(0, 6)
+TeamBtnCorner.Parent = TeamCheckBtn
+
+-- Visualize Toggle
 local VisualizeBtn = Instance.new("TextButton")
 VisualizeBtn.Size = UDim2.new(1, -20, 0, 35)
 VisualizeBtn.Position = UDim2.new(0, 10, 0, 260)
@@ -138,44 +160,104 @@ VisualizeBtn.BackgroundColor3 = Color3.fromRGB(100, 200, 100)
 VisualizeBtn.Text = "Visualize: ON"
 VisualizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 VisualizeBtn.Font = Enum.Font.GothamBold
+VisualizeBtn.TextSize = 14
 VisualizeBtn.Parent = MainFrame
-Instance.new("UICorner", VisualizeBtn).CornerRadius = UDim.new(0, 6)
 
--- // LOGIC & PHYSICS FIX // --
+local VisBtnCorner = Instance.new("UICorner")
+VisBtnCorner.CornerRadius = UDim.new(0, 6)
+VisBtnCorner.Parent = VisualizeBtn
 
-local function UpdateSlider(slider, fill, min, max, callback)
+-- Helper function to update slider
+local function UpdateSlider(slider, fill, min, max, current, callback)
     local dragging = false
+    
     local function update(input)
         local relativeX = math.clamp((input.Position.X - slider.AbsolutePosition.X) / slider.AbsoluteSize.X, 0, 1)
+        local value = min + (max - min) * relativeX
         fill.Size = UDim2.new(relativeX, 0, 1, 0)
-        callback(min + (max - min) * relativeX)
+        callback(value)
     end
-    slider.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true update(input) end end)
-    UserInputService.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end end)
-    UserInputService.InputChanged:Connect(function(input) if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then update(input) end end)
+    
+    slider.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            update(input)
+        end
+    end)
+    
+    slider.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            update(input)
+        end
+    end)
 end
 
-UpdateSlider(SizeSlider, SliderFill, 1, 50, function(value)
+-- Setup sliders
+UpdateSlider(SizeSlider, SliderFill, 1, 50, Settings.HitboxSize, function(value)
     Settings.HitboxSize = math.floor(value * 10) / 10
     SizeLabel.Text = "Hitbox Size: " .. Settings.HitboxSize
 end)
 
-UpdateSlider(TransSlider, TransFill, 0, 1, function(value)
+UpdateSlider(TransSlider, TransFill, 0, 1, Settings.Transparency, function(value)
     Settings.Transparency = math.floor(value * 100) / 100
     TransLabel.Text = "Transparency: " .. Settings.Transparency
 end)
 
+-- Team Check button
 TeamCheckBtn.MouseButton1Click:Connect(function()
     Settings.TeamCheck = not Settings.TeamCheck
     TeamCheckBtn.Text = "Team Check: " .. (Settings.TeamCheck and "ON" or "OFF")
     TeamCheckBtn.BackgroundColor3 = Settings.TeamCheck and Color3.fromRGB(100, 200, 100) or Color3.fromRGB(200, 100, 100)
 end)
 
+-- Visualize button
 VisualizeBtn.MouseButton1Click:Connect(function()
     Settings.VisualizeHitbox = not Settings.VisualizeHitbox
     VisualizeBtn.Text = "Visualize: " .. (Settings.VisualizeHitbox and "ON" or "OFF")
     VisualizeBtn.BackgroundColor3 = Settings.VisualizeHitbox and Color3.fromRGB(100, 200, 100) or Color3.fromRGB(200, 100, 100)
 end)
+
+-- Function to create hitbox part that follows player (PROPER METHOD)
+local function CreateHitbox(character)
+    if not character then return end
+    
+    local hrp = character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    
+    -- Remove old hitbox if exists
+    if HitboxParts[character] then
+        HitboxParts[character]:Destroy()
+        HitboxParts[character] = nil
+    end
+    
+    -- Create new invisible hitbox part
+    local hitbox = Instance.new("Part")
+    hitbox.Name = "Hitbox"
+    hitbox.Size = Vector3.new(Settings.HitboxSize, Settings.HitboxSize, Settings.HitboxSize)
+    hitbox.Transparency = Settings.VisualizeHitbox and Settings.Transparency or 1
+    hitbox.CanCollide = false
+    hitbox.Massless = true
+    hitbox.Anchored = false
+    hitbox.Material = Enum.Material.ForceField
+    hitbox.Color = Color3.fromRGB(255, 0, 0)
+    hitbox.Parent = character
+    
+    -- Weld hitbox to HumanoidRootPart so it follows the player
+    local weld = Instance.new("WeldConstraint")
+    weld.Part0 = hrp
+    weld.Part1 = hitbox
+    weld.Parent = hitbox
+    
+    HitboxParts[character] = hitbox
+    
+    return hitbox
+end
 
 local function CreateHitbox(player)
     if player == LocalPlayer or not player.Character then return end
