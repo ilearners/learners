@@ -1,5 +1,6 @@
 -- Clean Performance-Friendly Hitbox Extender
 -- Toggle GUI: L | Toggle Hitbox: PageDown
+-- Uses invisible parts instead of modifying HumanoidRootPart directly
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -13,11 +14,9 @@ local Settings = {
     Transparency = 0.5,
     TeamCheck = true,
     VisualizeHitbox = true,
-    TargetPart = "HumanoidRootPart",
 }
 
-local OriginalSizes = {}
-local OriginalProperties = {}
+local HitboxParts = {}
 local GuiVisible = true
 
 -- Create GUI
@@ -220,59 +219,62 @@ VisualizeBtn.MouseButton1Click:Connect(function()
     VisualizeBtn.BackgroundColor3 = Settings.VisualizeHitbox and Color3.fromRGB(100, 200, 100) or Color3.fromRGB(200, 100, 100)
 end)
 
--- Function to modify hitbox (FIXED FOR DESYNC ISSUE)
-local function ModifyHitbox(character, enable)
+-- Function to create hitbox part that follows player (PROPER METHOD)
+local function CreateHitbox(character)
     if not character then return end
     
-    local targetPart = character:FindFirstChild(Settings.TargetPart)
-    if not targetPart or not targetPart:IsA("BasePart") then return end
+    local hrp = character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
     
-    if enable then
-        -- Store original properties
-        if not OriginalSizes[targetPart] then
-            OriginalSizes[targetPart] = targetPart.Size
-            OriginalProperties[targetPart] = {
-                Transparency = targetPart.Transparency,
-                CanCollide = targetPart.CanCollide,
-                Massless = targetPart.Massless,
-            }
-        end
-        
-        -- CRITICAL FIX: Set CanCollide to false BEFORE changing size
-        targetPart.CanCollide = false
-        targetPart.Massless = true
-        
-        -- Apply new size without affecting physics/position
-        targetPart.Size = Vector3.new(Settings.HitboxSize, Settings.HitboxSize, Settings.HitboxSize)
-        targetPart.Transparency = Settings.VisualizeHitbox and Settings.Transparency or 1
-        
-    else
-        -- Restore original properties
-        if OriginalSizes[targetPart] then
-            targetPart.Size = OriginalSizes[targetPart]
-            if OriginalProperties[targetPart] then
-                targetPart.Transparency = OriginalProperties[targetPart].Transparency
-                targetPart.CanCollide = OriginalProperties[targetPart].CanCollide
-                targetPart.Massless = OriginalProperties[targetPart].Massless
-            end
-            OriginalSizes[targetPart] = nil
-            OriginalProperties[targetPart] = nil
-        end
+    -- Remove old hitbox if exists
+    if HitboxParts[character] then
+        HitboxParts[character]:Destroy()
+        HitboxParts[character] = nil
+    end
+    
+    -- Create new invisible hitbox part
+    local hitbox = Instance.new("Part")
+    hitbox.Name = "Hitbox"
+    hitbox.Size = Vector3.new(Settings.HitboxSize, Settings.HitboxSize, Settings.HitboxSize)
+    hitbox.Transparency = Settings.VisualizeHitbox and Settings.Transparency or 1
+    hitbox.CanCollide = false
+    hitbox.Massless = true
+    hitbox.Anchored = false
+    hitbox.Material = Enum.Material.ForceField
+    hitbox.Color = Color3.fromRGB(255, 0, 0)
+    hitbox.Parent = character
+    
+    -- Weld hitbox to HumanoidRootPart so it follows the player
+    local weld = Instance.new("WeldConstraint")
+    weld.Part0 = hrp
+    weld.Part1 = hitbox
+    weld.Parent = hitbox
+    
+    HitboxParts[character] = hitbox
+    
+    return hitbox
+end
+
+-- Function to remove hitbox
+local function RemoveHitbox(character)
+    if HitboxParts[character] then
+        HitboxParts[character]:Destroy()
+        HitboxParts[character] = nil
     end
 end
 
 -- Function to apply hitbox to all players
 local function ApplyToAllPlayers()
     for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
+        if player ~= LocalPlayer and player.Character then
             -- Team check
             if Settings.TeamCheck and player.Team == LocalPlayer.Team then
-                if player.Character then
-                    ModifyHitbox(player.Character, false)
-                end
+                RemoveHitbox(player.Character)
             else
-                if player.Character then
-                    ModifyHitbox(player.Character, Settings.Enabled)
+                if Settings.Enabled then
+                    CreateHitbox(player.Character)
+                else
+                    RemoveHitbox(player.Character)
                 end
             end
         end
@@ -297,57 +299,71 @@ end
 -- Handle new players
 Players.PlayerAdded:Connect(function(player)
     player.CharacterAdded:Connect(function(character)
-        task.wait(0.5) -- Wait for character to fully load
+        task.wait(0.5)
         if Settings.Enabled then
             if not Settings.TeamCheck or player.Team ~= LocalPlayer.Team then
-                ModifyHitbox(character, true)
+                CreateHitbox(character)
             end
         end
+    end)
+    
+    player.CharacterRemoving:Connect(function(character)
+        RemoveHitbox(character)
     end)
 end)
 
 -- Handle existing players
 for _, player in ipairs(Players:GetPlayers()) do
-    if player ~= LocalPlayer and player.Character then
-        task.wait(0.1)
-        if Settings.Enabled then
-            if not Settings.TeamCheck or player.Team ~= LocalPlayer.Team then
-                ModifyHitbox(player.Character, true)
+    if player ~= LocalPlayer then
+        if player.Character then
+            task.wait(0.1)
+            if Settings.Enabled then
+                if not Settings.TeamCheck or player.Team ~= LocalPlayer.Team then
+                    CreateHitbox(player.Character)
+                end
             end
         end
+        
+        player.CharacterAdded:Connect(function(character)
+            task.wait(0.5)
+            if Settings.Enabled then
+                if not Settings.TeamCheck or player.Team ~= LocalPlayer.Team then
+                    CreateHitbox(character)
+                end
+            end
+        end)
+        
+        player.CharacterRemoving:Connect(function(character)
+            RemoveHitbox(character)
+        end)
     end
-    
-    player.CharacterAdded:Connect(function(character)
-        task.wait(0.5)
-        if Settings.Enabled then
-            if not Settings.TeamCheck or player.Team ~= LocalPlayer.Team then
-                ModifyHitbox(character, true)
-            end
-        end
-    end)
 end
 
--- IMPROVED Update loop with better synchronization handling
+-- Update loop to sync hitbox size and transparency
 RunService.Heartbeat:Connect(function()
     if Settings.Enabled then
         for _, player in ipairs(Players:GetPlayers()) do
             if player ~= LocalPlayer and player.Character then
-                local targetPart = player.Character:FindFirstChild(Settings.TargetPart)
-                if targetPart and targetPart:IsA("BasePart") then
-                    -- Skip teammates if team check is on
-                    if Settings.TeamCheck and player.Team == LocalPlayer.Team then
-                        ModifyHitbox(player.Character, false)
-                    else
-                        -- Ensure CanCollide stays false to prevent physics issues
-                        targetPart.CanCollide = false
-                        targetPart.Massless = true
-                        
+                -- Skip teammates if team check is on
+                if Settings.TeamCheck and player.Team == LocalPlayer.Team then
+                    RemoveHitbox(player.Character)
+                else
+                    local hitbox = HitboxParts[player.Character]
+                    if hitbox then
                         -- Update size and transparency in real-time
-                        targetPart.Size = Vector3.new(Settings.HitboxSize, Settings.HitboxSize, Settings.HitboxSize)
-                        targetPart.Transparency = Settings.VisualizeHitbox and Settings.Transparency or 1
+                        hitbox.Size = Vector3.new(Settings.HitboxSize, Settings.HitboxSize, Settings.HitboxSize)
+                        hitbox.Transparency = Settings.VisualizeHitbox and Settings.Transparency or 1
+                    else
+                        -- Create hitbox if it doesn't exist
+                        CreateHitbox(player.Character)
                     end
                 end
             end
+        end
+    else
+        -- Remove all hitboxes when disabled
+        for character, hitbox in pairs(HitboxParts) do
+            RemoveHitbox(character)
         end
     end
 end)
@@ -371,7 +387,7 @@ end)
 -- Cleanup on player leaving
 Players.PlayerRemoving:Connect(function(player)
     if player.Character then
-        ModifyHitbox(player.Character, false)
+        RemoveHitbox(player.Character)
     end
 end)
 
