@@ -1,4 +1,4 @@
--- AXIOS Hitbox Extender | Original Aesthetic + Physics Fix
+-- Clean Performance-Friendly Hitbox Extender
 -- Toggle GUI: L | Toggle Hitbox: PageDown
 
 local Players = game:GetService("Players")
@@ -16,14 +16,8 @@ local Settings = {
 }
 
 local HitboxParts = {}
-local GuiVisible = true
 
--- Container to prevent physics freezing
-local HitboxFolder = Instance.new("Folder")
-HitboxFolder.Name = "AxiosHitboxContainer"
-HitboxFolder.Parent = workspace
-
--- Create GUI
+-- // GUI CONSTRUCTION (EXACT STYLE) // --
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "HitboxExtenderGUI"
 ScreenGui.ResetOnSpawn = false
@@ -57,7 +51,6 @@ local TitleCorner = Instance.new("UICorner")
 TitleCorner.CornerRadius = UDim.new(0, 8)
 TitleCorner.Parent = Title
 
--- Status Label
 local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Size = UDim2.new(1, -20, 0, 30)
 StatusLabel.Position = UDim2.new(0, 10, 0, 50)
@@ -69,7 +62,6 @@ StatusLabel.TextSize = 14
 StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
 StatusLabel.Parent = MainFrame
 
--- Size Slider
 local SizeLabel = Instance.new("TextLabel")
 SizeLabel.Size = UDim2.new(1, -20, 0, 25)
 SizeLabel.Position = UDim2.new(0, 10, 0, 90)
@@ -103,7 +95,6 @@ local FillCorner = Instance.new("UICorner")
 FillCorner.CornerRadius = UDim.new(0, 4)
 FillCorner.Parent = SliderFill
 
--- Transparency Slider
 local TransLabel = Instance.new("TextLabel")
 TransLabel.Size = UDim2.new(1, -20, 0, 25)
 TransLabel.Position = UDim2.new(0, 10, 0, 150)
@@ -137,7 +128,6 @@ local TransFillCorner = Instance.new("UICorner")
 TransFillCorner.CornerRadius = UDim.new(0, 4)
 TransFillCorner.Parent = TransFill
 
--- Team Check Toggle
 local TeamCheckBtn = Instance.new("TextButton")
 TeamCheckBtn.Size = UDim2.new(1, -20, 0, 35)
 TeamCheckBtn.Position = UDim2.new(0, 10, 0, 215)
@@ -152,7 +142,6 @@ local TeamBtnCorner = Instance.new("UICorner")
 TeamBtnCorner.CornerRadius = UDim.new(0, 6)
 TeamBtnCorner.Parent = TeamCheckBtn
 
--- Visualize Toggle
 local VisualizeBtn = Instance.new("TextButton")
 VisualizeBtn.Size = UDim2.new(1, -20, 0, 35)
 VisualizeBtn.Position = UDim2.new(0, 10, 0, 260)
@@ -167,117 +156,67 @@ local VisBtnCorner = Instance.new("UICorner")
 VisBtnCorner.CornerRadius = UDim.new(0, 6)
 VisBtnCorner.Parent = VisualizeBtn
 
--- Helper function to update slider
-local function UpdateSlider(slider, fill, min, max, current, callback)
+-- // CORE LOGIC // --
+
+local function UpdateSlider(slider, fill, min, max, callback)
     local dragging = false
-    
     local function update(input)
         local relativeX = math.clamp((input.Position.X - slider.AbsolutePosition.X) / slider.AbsoluteSize.X, 0, 1)
-        local value = min + (max - min) * relativeX
         fill.Size = UDim2.new(relativeX, 0, 1, 0)
-        callback(value)
+        callback(min + (max - min) * relativeX)
     end
-    
-    slider.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            update(input)
-        end
-    end)
-    
-    slider.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = false
-        end
-    end)
-    
-    UserInputService.InputChanged:Connect(function(input)
-        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-            update(input)
-        end
-    end)
+    slider.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true update(input) end end)
+    UserInputService.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end end)
+    UserInputService.InputChanged:Connect(function(input) if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then update(input) end end)
 end
 
--- Setup sliders
-UpdateSlider(SizeSlider, SliderFill, 1, 50, Settings.HitboxSize, function(value)
+UpdateSlider(SizeSlider, SliderFill, 1, 50, function(value)
     Settings.HitboxSize = math.floor(value * 10) / 10
     SizeLabel.Text = "Hitbox Size: " .. Settings.HitboxSize
 end)
 
-UpdateSlider(TransSlider, TransFill, 0, 1, Settings.Transparency, function(value)
+UpdateSlider(TransSlider, TransFill, 0, 1, function(value)
     Settings.Transparency = math.floor(value * 100) / 100
     TransLabel.Text = "Transparency: " .. Settings.Transparency
 end)
 
--- Team Check button
 TeamCheckBtn.MouseButton1Click:Connect(function()
     Settings.TeamCheck = not Settings.TeamCheck
     TeamCheckBtn.Text = "Team Check: " .. (Settings.TeamCheck and "ON" or "OFF")
     TeamCheckBtn.BackgroundColor3 = Settings.TeamCheck and Color3.fromRGB(100, 200, 100) or Color3.fromRGB(200, 100, 100)
 end)
 
--- Visualize button
 VisualizeBtn.MouseButton1Click:Connect(function()
     Settings.VisualizeHitbox = not Settings.VisualizeHitbox
     VisualizeBtn.Text = "Visualize: " .. (Settings.VisualizeHitbox and "ON" or "OFF")
     VisualizeBtn.BackgroundColor3 = Settings.VisualizeHitbox and Color3.fromRGB(100, 200, 100) or Color3.fromRGB(200, 100, 100)
 end)
 
--- Function to create hitbox part that follows player (PROPER METHOD)
-local function CreateHitbox(character)
-    if not character then return end
-    
-    local hrp = character:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
-    
-    -- Remove old hitbox if exists
-    if HitboxParts[character] then
-        HitboxParts[character]:Destroy()
-        HitboxParts[character] = nil
-    end
-    
-    -- Create new invisible hitbox part
-    local hitbox = Instance.new("Part")
-    hitbox.Name = "Hitbox"
-    hitbox.Size = Vector3.new(Settings.HitboxSize, Settings.HitboxSize, Settings.HitboxSize)
-    hitbox.Transparency = Settings.VisualizeHitbox and Settings.Transparency or 1
-    hitbox.CanCollide = false
-    hitbox.Massless = true
-    hitbox.Anchored = false
-    hitbox.Material = Enum.Material.ForceField
-    hitbox.Color = Color3.fromRGB(255, 0, 0)
-    hitbox.Parent = character
-    
-    -- Weld hitbox to HumanoidRootPart so it follows the player
-    local weld = Instance.new("WeldConstraint")
-    weld.Part0 = hrp
-    weld.Part1 = hitbox
-    weld.Parent = hitbox
-    
-    HitboxParts[character] = hitbox
-    
-    return hitbox
-end
-
 local function CreateHitbox(player)
     if player == LocalPlayer or not player.Character then return end
     local hrp = player.Character:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
 
+    -- Destroy existing if any
+    if HitboxParts[player] then HitboxParts[player]:Destroy() end
+
     local hitbox = Instance.new("Part")
-    hitbox.Name = "AxiosPart"
+    hitbox.Name = "HumanoidRootPart" -- Naming it this helps some gun systems recognize it
     hitbox.Size = Vector3.new(Settings.HitboxSize, Settings.HitboxSize, Settings.HitboxSize)
     hitbox.Transparency = Settings.VisualizeHitbox and Settings.Transparency or 1
     hitbox.CanCollide = false
     hitbox.Massless = true
+    hitbox.CanQuery = true -- Ensure bullets can actually detect it
     hitbox.Material = Enum.Material.ForceField
     hitbox.Color = Color3.fromRGB(255, 0, 0)
-    hitbox.Parent = HitboxFolder
+    
+    -- Parenting to the character so gun scripts find the Humanoid
+    hitbox.Parent = player.Character
 
-    -- This is the critical fix: Weld allows cross-parenting without freezing physics
     local weld = Instance.new("Weld")
-    weld.Part0 = hitbox
-    weld.Part1 = hrp
+    weld.Part0 = hrp
+    weld.Part1 = hitbox
+    weld.C0 = CFrame.new(0, 0, 0)
     weld.Parent = hitbox
 
     HitboxParts[player] = hitbox
@@ -319,5 +258,3 @@ UserInputService.InputBegan:Connect(function(input, processed)
     if input.KeyCode == Enum.KeyCode.L then ScreenGui.Enabled = not ScreenGui.Enabled
     elseif input.KeyCode == Enum.KeyCode.PageDown then ToggleHitbox() end
 end)
-
-print("AXIOS Loaded | L for GUI")
