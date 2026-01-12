@@ -1,4 +1,4 @@
--- AXIOS ESP | Original Aesthetic Restored
+-- Learners ESP | Updated with Team Check
 -- Toggle GUI: P | ESP Toggle: Auto-updates on UI
 
 local Players = game:GetService("Players")
@@ -10,12 +10,13 @@ local UserInputService = game:GetService("UserInputService")
 local ESPEnabled = true
 local ShowNames = true
 local ShowHealth = true
+local TeamCheck = true -- New Team Check setting
 local MaxDistance = 1000
 local GuiVisible = true
 local lastCheck = 0
 local ESPData = {}
 
--- // AXIOS GUI CONSTRUCTION // --
+-- // GUI CONSTRUCTION // --
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "AxiosESP_GUI"
 ScreenGui.ResetOnSpawn = false
@@ -23,8 +24,8 @@ ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 280, 0, 300) -- Matched size to Hitbox GUI
-MainFrame.Position = UDim2.new(0.5, -140, 0.5, -150)
+MainFrame.Size = UDim2.new(0, 280, 0, 340) -- Increased height for new button
+MainFrame.Position = UDim2.new(0.5, -140, 0.5, -170)
 MainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
@@ -85,19 +86,25 @@ local function CreateAxiosButton(text, pos, enabled, callback)
     return Btn
 end
 
-CreateAxiosButton("Master ESP", UDim2.new(0, 10, 0, 100), ESPEnabled, function()
+CreateAxiosButton("Master ESP", UDim2.new(0, 10, 0, 90), ESPEnabled, function()
     ESPEnabled = not ESPEnabled
     return ESPEnabled
 end)
 
-CreateAxiosButton("Show Names", UDim2.new(0, 10, 0, 145), ShowNames, function()
+CreateAxiosButton("Show Names", UDim2.new(0, 10, 0, 130), ShowNames, function()
     ShowNames = not ShowNames
     return ShowNames
 end)
 
-CreateAxiosButton("Show Health", UDim2.new(0, 10, 0, 190), ShowHealth, function()
+CreateAxiosButton("Show Health", UDim2.new(0, 10, 0, 170), ShowHealth, function()
     ShowHealth = not ShowHealth
     return ShowHealth
+end)
+
+-- Added Team Check Button
+CreateAxiosButton("Team Check", UDim2.new(0, 10, 0, 210), TeamCheck, function()
+    TeamCheck = not TeamCheck
+    return TeamCheck
 end)
 
 local Footer = Instance.new("TextLabel")
@@ -184,14 +191,17 @@ local function UpdateESP(player)
         return
     end
 
+    -- Logic for Team Check and ESP Visibility
+    local isTeammate = TeamCheck and player.Team == LocalPlayer.Team
     local distance = (workspace.CurrentCamera.CFrame.Position - hrp.Position).Magnitude
     local inRange = distance <= MaxDistance
+    local shouldShow = ESPEnabled and inRange and not isTeammate
 
     if data.highlight then
-        data.highlight.Enabled = ESPEnabled and inRange
+        data.highlight.Enabled = shouldShow
     end
 
-    data.billboard.Enabled = ESPEnabled and inRange and (ShowNames or ShowHealth)
+    data.billboard.Enabled = shouldShow and (ShowNames or ShowHealth)
     data.billboard.Adornee = hrp
 
     data.nameLabel.Visible = ShowNames
@@ -199,7 +209,7 @@ local function UpdateESP(player)
     
     if ShowHealth then
         local hpPercent = hum.Health / hum.MaxHealth
-        data.healthLabel.TextColor3 = Color3.fromHSV(hpPercent * 0.3, 1, 1) -- Smooth green to red
+        data.healthLabel.TextColor3 = Color3.fromHSV(hpPercent * 0.3, 1, 1)
         data.healthLabel.Text = math.floor(hum.Health) .. " HP"
         data.healthLabel.Visible = true
     else
@@ -234,5 +244,3 @@ RunService.RenderStepped:Connect(function()
         UpdateESP(p)
     end
 end)
-
-print("AXIOS ESP Loaded | Press 'P' for GUI")
