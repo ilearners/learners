@@ -1,5 +1,5 @@
--- Learners ESP | Optimized & Lag-Fixed
--- Toggle GUI: P | ESP Toggle: Auto-updates on UI
+-- Learners ESP
+-- Toggle GUI: P
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -15,7 +15,7 @@ local MaxDistance = 1000
 local GuiVisible = true
 local ESPData = {}
 
--- // GUI CONSTRUCTION (LEARNERS STYLE) // --
+-- // GUI CONSTRUCTION // --
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "LearnersESP_GUI"
 ScreenGui.ResetOnSpawn = false
