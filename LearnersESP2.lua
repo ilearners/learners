@@ -1,4 +1,4 @@
--- Learners ESP | Auto-Thickness & Original UI Restored
+-- Learners ESP
 -- Toggle GUI: PageDown
 
 local Players = game:GetService("Players")
@@ -16,7 +16,7 @@ local MaxDistance = 1000
 local GuiVisible = true
 local ESPData = {}
 
--- // GUI CONSTRUCTION (EXACT ORIGINAL STYLE) // --
+-- // GUI CONSTRUCTION // --
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "LearnersESP_GUI"
 ScreenGui.ResetOnSpawn = false
@@ -99,19 +99,21 @@ Footer.Font = Enum.Font.Gotham
 Footer.TextSize = 12
 Footer.Parent = MainFrame
 
--- // AUTO-THICKNESS CORE LOGIC // --
+-- // LOGIC OPTIMIZATIONS // --
 
 local function CreateESPData(player)
-    local data = {}
-    local hl = Instance.new("Highlight")
-    hl.FillTransparency = 1
-    hl.OutlineColor = Color3.fromRGB(255, 0, 0)
-    hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    local data = {
+        highlight = Instance.new("Highlight"),
+        billboard = Instance.new("BillboardGui")
+    }
     
-    local bb = Instance.new("BillboardGui")
-    bb.Size = UDim2.new(0, 200, 0, 60)
-    bb.StudsOffset = Vector3.new(0, 3, 0)
-    bb.AlwaysOnTop = true
+    data.highlight.FillTransparency = 1
+    data.highlight.OutlineColor = Color3.fromRGB(255, 0, 0)
+    data.highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    
+    data.billboard.Size = UDim2.new(0, 200, 0, 60)
+    data.billboard.StudsOffset = Vector3.new(0, 3, 0)
+    data.billboard.AlwaysOnTop = true
 
     local nl = Instance.new("TextLabel")
     nl.Size = UDim2.new(1, 0, 0.5, 0)
@@ -120,7 +122,8 @@ local function CreateESPData(player)
     nl.Font = Enum.Font.GothamBold
     nl.TextSize = 14
     nl.TextStrokeTransparency = 0
-    nl.Parent = bb
+    nl.Parent = data.billboard
+    data.nameLabel = nl
 
     local hll = Instance.new("TextLabel")
     hll.Size = UDim2.new(1, 0, 0.5, 0)
@@ -129,18 +132,16 @@ local function CreateESPData(player)
     hll.Font = Enum.Font.Gotham
     hll.TextSize = 13
     hll.TextStrokeTransparency = 0
-    hll.Parent = bb
-
-    data.highlight = hl
-    data.billboard = bb
-    data.nameLabel = nl
+    hll.Parent = data.billboard
     data.healthLabel = hll
+
     ESPData[player] = data
 end
 
--- Optimized Loop (Fixed wait to prevent RAM frying)
 task.spawn(function()
     while task.wait(0.03) do
+        local camPos = Camera.CFrame.Position -- Cache cam position for the frame
+        
         for _, player in ipairs(Players:GetPlayers()) do
             if player == LocalPlayer then continue end
             
@@ -155,20 +156,18 @@ task.spawn(function()
             local shouldShow = ESPEnabled and char and hrp and hum and not isTeammate
             
             if shouldShow then
-                local dist = (Camera.CFrame.Position - hrp.Position).Magnitude
+                local dist = (camPos - hrp.Position).Magnitude
                 if dist <= MaxDistance then
-                    -- AUTO-THICKNESS LOGIC:
-                    -- Further away = thinner outline (higher transparency)
-                    local thickness = math.clamp(dist / 500, 0, 0.8) 
+                    -- ONLY parent if parent has changed (Crucial for RAM)
+                    if data.highlight.Parent ~= char then data.highlight.Parent = char end
+                    if data.billboard.Parent ~= char then data.billboard.Parent = char end
                     
                     data.highlight.Enabled = true
                     data.highlight.Adornee = char
-                    data.highlight.OutlineTransparency = thickness
-                    data.highlight.Parent = char
+                    data.highlight.OutlineTransparency = math.clamp(dist / 500, 0, 0.8)
 
                     data.billboard.Enabled = true
                     data.billboard.Adornee = hrp
-                    data.billboard.Parent = char
 
                     data.nameLabel.Visible = ShowNames
                     data.nameLabel.Text = player.Name
@@ -188,6 +187,9 @@ task.spawn(function()
             if not shouldShow then
                 data.highlight.Enabled = false
                 data.billboard.Enabled = false
+                -- Move back to nil only when necessary to stop rendering
+                data.highlight.Parent = nil
+                data.billboard.Parent = nil
             end
         end
     end
@@ -195,8 +197,8 @@ end)
 
 Players.PlayerRemoving:Connect(function(player)
     if ESPData[player] then
-        if ESPData[player].highlight then ESPData[player].highlight:Destroy() end
-        if ESPData[player].billboard then ESPData[player].billboard:Destroy() end
+        data.highlight:Destroy()
+        data.billboard:Destroy()
         ESPData[player] = nil
     end
 end)
