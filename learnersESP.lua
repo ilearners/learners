@@ -1,278 +1,238 @@
--- Learners' non annoying ESP script that looks good!
+-- AXIOS ESP | Original Aesthetic Restored
+-- Toggle GUI: P | ESP Toggle: Auto-updates on UI
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local GuiVisible = true
-local lastCheck = 0
 
--- GUI Setup
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-
-local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 150, 0, 120)
-MainFrame.Position = UDim2.new(0, 10, 0, 10)
-MainFrame.BackgroundColor3 = Color3.new(0.2, 0.2, 0.2)
-MainFrame.BackgroundTransparency = 0.3
-MainFrame.BorderSizePixel = 2
-MainFrame.Parent = ScreenGui
-
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 0, 30)
-Title.Position = UDim2.new(0, 0, 0, 0)
-Title.Text = "P to toggle GUI"
-Title.BackgroundTransparency = 1
-Title.TextColor3 = Color3.new(1, 1, 1)
-Title.Font = Enum.Font.SourceSansBold
-Title.TextSize = 16
-Title.Parent = MainFrame
-
-local ESPToggle = Instance.new("TextButton")
-ESPToggle.Size = UDim2.new(1, -20, 0, 25)
-ESPToggle.Position = UDim2.new(0, 10, 0, 35)
-ESPToggle.Text = "ESP: ON"
-ESPToggle.BackgroundColor3 = Color3.new(0, 1, 0)
-ESPToggle.TextColor3 = Color3.new(0, 0, 0)
-ESPToggle.Font = Enum.Font.SourceSansBold
-ESPToggle.TextSize = 14
-ESPToggle.Parent = MainFrame
-
-local NamesToggle = Instance.new("TextButton")
-NamesToggle.Size = UDim2.new(1, -20, 0, 25)
-NamesToggle.Position = UDim2.new(0, 10, 0, 65)
-NamesToggle.Text = "Names: ON"
-NamesToggle.BackgroundColor3 = Color3.new(0, 1, 0)
-NamesToggle.TextColor3 = Color3.new(0, 0, 0)
-NamesToggle.Font = Enum.Font.SourceSansBold
-NamesToggle.TextSize = 14
-NamesToggle.Parent = MainFrame
-
-local HealthToggle = Instance.new("TextButton")
-HealthToggle.Size = UDim2.new(1, -20, 0, 25)
-HealthToggle.Position = UDim2.new(0, 10, 0, 95)
-HealthToggle.Text = "Health: ON"
-HealthToggle.BackgroundColor3 = Color3.new(0, 1, 0)
-HealthToggle.TextColor3 = Color3.new(0, 0, 0)
-HealthToggle.Font = Enum.Font.SourceSansBold
-HealthToggle.TextSize = 14
-HealthToggle.Parent = MainFrame
-
+-- Settings
 local ESPEnabled = true
 local ShowNames = true
 local ShowHealth = true
 local MaxDistance = 1000
-local ESPData = {} -- Store ESP objects
+local GuiVisible = true
+local lastCheck = 0
+local ESPData = {}
 
-ESPToggle.MouseButton1Click:Connect(function()
-    ESPEnabled = not ESPEnabled
-    ESPToggle.Text = ESPEnabled and "ESP: ON" or "ESP: OFF"
-    ESPToggle.BackgroundColor3 = ESPEnabled and Color3.new(0, 1, 0) or Color3.new(1, 0, 0)
-end)
+-- // AXIOS GUI CONSTRUCTION // --
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "AxiosESP_GUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
-NamesToggle.MouseButton1Click:Connect(function()
-    ShowNames = not ShowNames
-    NamesToggle.Text = ShowNames and "Names: ON" or "Names: OFF"
-    NamesToggle.BackgroundColor3 = ShowNames and Color3.new(0, 1, 0) or Color3.new(1, 0, 0)
-end)
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 280, 0, 300) -- Matched size to Hitbox GUI
+MainFrame.Position = UDim2.new(0.5, -140, 0.5, -150)
+MainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = ScreenGui
 
-HealthToggle.MouseButton1Click:Connect(function()
-    ShowHealth = not ShowHealth
-    HealthToggle.Text = ShowHealth and "Health: ON" or "Health: OFF"
-    HealthToggle.BackgroundColor3 = ShowHealth and Color3.new(0, 1, 0) or Color3.new(1, 0, 0)
-end)
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 8)
+UICorner.Parent = MainFrame
 
--- Hotkey to toggle GUI (P)
-UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
-    if gameProcessedEvent then return end
-    if input.KeyCode == Enum.KeyCode.P then
-        GuiVisible = not GuiVisible
-        ScreenGui.Enabled = GuiVisible
-    end
-end)
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 40)
+Title.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+Title.BorderSizePixel = 0
+Title.Text = "AXIOS | ESP"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 18
+Title.Parent = MainFrame
 
--- Function to create ESP for a player
-local function CreateESP(player)
-    if player == LocalPlayer then return end
+local TitleCorner = Instance.new("UICorner")
+TitleCorner.CornerRadius = UDim.new(0, 8)
+TitleCorner.Parent = Title
 
-    local character = player.Character
-    if not character then return end
+-- Status Label
+local StatusLabel = Instance.new("TextLabel")
+StatusLabel.Size = UDim2.new(1, -20, 0, 30)
+StatusLabel.Position = UDim2.new(0, 10, 0, 50)
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.Text = "Status: Monitoring"
+StatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+StatusLabel.Font = Enum.Font.GothamBold
+StatusLabel.TextSize = 14
+StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
+StatusLabel.Parent = MainFrame
 
-    -- Remove old ESP if it exists
-    if ESPData[player] then
-        RemoveESP(player)
-    end
-
-    local data = {
-        highlight = nil,
-        billboard = Instance.new("BillboardGui"),
-        nameLabel = Instance.new("TextLabel"),
-        healthLabel = Instance.new("TextLabel")
-    }
-
-    -- Highlight setup - ONLY OUTLINE, NO FILL
-    local highlight = Instance.new("Highlight")
-    highlight.Adornee = character
-    highlight.Enabled = false
-    highlight.FillColor = Color3.new(1, 0, 0)
-    highlight.OutlineColor = Color3.new(1, 0, 0)
-    highlight.FillTransparency = 1  -- Fully transparent fill (no fill visible)
-    highlight.OutlineTransparency = 0  -- Fully opaque outline
-    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    highlight.Parent = character
-    data.highlight = highlight
-
-    -- Billboard setup
-    data.billboard.Size = UDim2.new(0, 200, 0, 60)
-    data.billboard.StudsOffset = Vector3.new(0, 3, 0)
-    data.billboard.AlwaysOnTop = true
-    data.billboard.Enabled = false
-    data.billboard.Parent = character
-
-    -- Name label
-    data.nameLabel.Size = UDim2.new(1, 0, 0.5, 0)
-    data.nameLabel.Position = UDim2.new(0, 0, 0, 0)
-    data.nameLabel.BackgroundTransparency = 1
-    data.nameLabel.TextColor3 = Color3.new(1, 1, 1)
-    data.nameLabel.Font = Enum.Font.SourceSansBold
-    data.nameLabel.TextSize = 16
-    data.nameLabel.TextStrokeTransparency = 0
-    data.nameLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
-    data.nameLabel.Text = player.Name
-    data.nameLabel.Parent = data.billboard
-
-    -- Health label
-    data.healthLabel.Size = UDim2.new(1, 0, 0.5, 0)
-    data.healthLabel.Position = UDim2.new(0, 0, 0.5, 0)
-    data.healthLabel.BackgroundTransparency = 1
-    data.healthLabel.TextColor3 = Color3.new(0, 1, 0)
-    data.healthLabel.Font = Enum.Font.SourceSans
-    data.healthLabel.TextSize = 14
-    data.healthLabel.TextStrokeTransparency = 0
-    data.healthLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
-    data.healthLabel.Text = "HP: 100/100"
-    data.healthLabel.Parent = data.billboard
-
-    ESPData[player] = data
+-- Reusable AXIOS Button Function
+local function CreateAxiosButton(text, pos, enabled, callback)
+    local Btn = Instance.new("TextButton")
+    Btn.Size = UDim2.new(1, -20, 0, 35)
+    Btn.Position = pos
+    Btn.BackgroundColor3 = enabled and Color3.fromRGB(100, 200, 100) or Color3.fromRGB(200, 100, 100)
+    Btn.Text = text .. (enabled and ": ON" or ": OFF")
+    Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Btn.Font = Enum.Font.GothamBold
+    Btn.TextSize = 14
+    Btn.Parent = MainFrame
+    
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0, 6)
+    Corner.Parent = Btn
+    
+    Btn.MouseButton1Click:Connect(function()
+        local newState = callback()
+        Btn.Text = text .. (newState and ": ON" or ": OFF")
+        Btn.BackgroundColor3 = newState and Color3.fromRGB(100, 200, 100) or Color3.fromRGB(200, 100, 100)
+    end)
+    return Btn
 end
 
--- Function to remove ESP for a player
+CreateAxiosButton("Master ESP", UDim2.new(0, 10, 0, 100), ESPEnabled, function()
+    ESPEnabled = not ESPEnabled
+    return ESPEnabled
+end)
+
+CreateAxiosButton("Show Names", UDim2.new(0, 10, 0, 145), ShowNames, function()
+    ShowNames = not ShowNames
+    return ShowNames
+end)
+
+CreateAxiosButton("Show Health", UDim2.new(0, 10, 0, 190), ShowHealth, function()
+    ShowHealth = not ShowHealth
+    return ShowHealth
+end)
+
+local Footer = Instance.new("TextLabel")
+Footer.Size = UDim2.new(1, 0, 0, 20)
+Footer.Position = UDim2.new(0, 0, 1, -25)
+Footer.BackgroundTransparency = 1
+Footer.Text = "Press 'P' to Toggle GUI"
+Footer.TextColor3 = Color3.fromRGB(150, 150, 150)
+Footer.Font = Enum.Font.Gotham
+Footer.TextSize = 12
+Footer.Parent = MainFrame
+
+-- // CORE ESP LOGIC // --
+
 local function RemoveESP(player)
     if ESPData[player] then
-        if ESPData[player].highlight then
-            ESPData[player].highlight:Destroy()
-        end
-        if ESPData[player].billboard then
-            ESPData[player].billboard:Destroy()
-        end
+        if ESPData[player].highlight then ESPData[player].highlight:Destroy() end
+        if ESPData[player].billboard then ESPData[player].billboard:Destroy() end
         ESPData[player] = nil
     end
 end
 
--- Optimized update function
+local function CreateESP(player)
+    if player == LocalPlayer then return end
+    local character = player.Character
+    if not character then return end
+
+    RemoveESP(player)
+
+    local data = {}
+
+    -- Highlight (Outline Only)
+    local hl = Instance.new("Highlight")
+    hl.Adornee = character
+    hl.FillTransparency = 1
+    hl.OutlineColor = Color3.fromRGB(255, 0, 0)
+    hl.OutlineTransparency = 0
+    hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    hl.Parent = character
+    data.highlight = hl
+
+    -- Billboard
+    local bb = Instance.new("BillboardGui")
+    bb.Size = UDim2.new(0, 200, 0, 60)
+    bb.StudsOffset = Vector3.new(0, 3, 0)
+    bb.AlwaysOnTop = true
+    bb.Parent = character
+    data.billboard = bb
+
+    -- Labels
+    local nl = Instance.new("TextLabel")
+    nl.Size = UDim2.new(1, 0, 0.5, 0)
+    nl.BackgroundTransparency = 1
+    nl.TextColor3 = Color3.new(1, 1, 1)
+    nl.Font = Enum.Font.GothamBold
+    nl.TextSize = 14
+    nl.TextStrokeTransparency = 0
+    nl.Parent = bb
+    data.nameLabel = nl
+
+    local hl_label = Instance.new("TextLabel")
+    hl_label.Size = UDim2.new(1, 0, 0.5, 0)
+    hl_label.Position = UDim2.new(0, 0, 0.5, 0)
+    hl_label.BackgroundTransparency = 1
+    hl_label.Font = Enum.Font.Gotham
+    hl_label.TextSize = 13
+    hl_label.TextStrokeTransparency = 0
+    hl_label.Parent = bb
+    data.healthLabel = hl_label
+
+    ESPData[player] = data
+end
+
 local function UpdateESP(player)
     local data = ESPData[player]
-    if not data then return end
+    if not data or not player.Character then return end
 
-    local character = player.Character
-    if not character or not character:FindFirstChild("HumanoidRootPart") then
-        if data.highlight then
-            data.highlight.Enabled = false
-        end
+    local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+    local hum = player.Character:FindFirstChild("Humanoid")
+    
+    if not hrp or not hum then
+        if data.highlight then data.highlight.Enabled = false end
         data.billboard.Enabled = false
         return
     end
 
-    local humanoidRootPart = character.HumanoidRootPart
-    local humanoid = character:FindFirstChild("Humanoid")
-    if not humanoid then
-        if data.highlight then
-            data.highlight.Enabled = false
-        end
-        data.billboard.Enabled = false
-        return
-    end
+    local distance = (workspace.CurrentCamera.CFrame.Position - hrp.Position).Magnitude
+    local inRange = distance <= MaxDistance
 
-    -- Distance check
-    local distance = (workspace.CurrentCamera.CFrame.Position - humanoidRootPart.Position).Magnitude
-    if distance > MaxDistance then
-        if data.highlight then
-            data.highlight.Enabled = false
-        end
-        data.billboard.Enabled = false
-        return
-    end
-
-    -- Update highlight
     if data.highlight then
-        data.highlight.Adornee = character
-        data.highlight.Enabled = ESPEnabled
+        data.highlight.Enabled = ESPEnabled and inRange
     end
 
-    -- Update billboard
-    data.billboard.Adornee = humanoidRootPart
-    data.billboard.Enabled = ESPEnabled and (ShowNames or ShowHealth)
+    data.billboard.Enabled = ESPEnabled and inRange and (ShowNames or ShowHealth)
+    data.billboard.Adornee = hrp
 
-    -- Update labels
     data.nameLabel.Visible = ShowNames
     data.nameLabel.Text = player.Name
-
+    
     if ShowHealth then
-        local healthPercent = humanoid.Health / humanoid.MaxHealth
-        local healthColor = Color3.new(1 - healthPercent, healthPercent, 0)
-        data.healthLabel.TextColor3 = healthColor
-        data.healthLabel.Text = string.format("HP: %d/%d", math.floor(humanoid.Health), math.floor(humanoid.MaxHealth))
+        local hpPercent = hum.Health / hum.MaxHealth
+        data.healthLabel.TextColor3 = Color3.fromHSV(hpPercent * 0.3, 1, 1) -- Smooth green to red
+        data.healthLabel.Text = math.floor(hum.Health) .. " HP"
         data.healthLabel.Visible = true
     else
         data.healthLabel.Visible = false
     end
 end
 
--- Connect to player events
-Players.PlayerAdded:Connect(function(player)
-    -- Wait for character to load
-    player.CharacterAdded:Connect(function(character)
-        task.wait(0.1) -- Small delay to ensure character is fully loaded
-        CreateESP(player)
-    end)
+-- // CONNECTIONS // --
 
-    player.CharacterRemoving:Connect(function()
-        RemoveESP(player)
-    end)
+UserInputService.InputBegan:Connect(function(input, processed)
+    if processed then return end
+    if input.KeyCode == Enum.KeyCode.P then
+        GuiVisible = not GuiVisible
+        ScreenGui.Enabled = GuiVisible
+    end
+end)
+
+Players.PlayerAdded:Connect(function(p)
+    p.CharacterAdded:Connect(function() task.wait(0.2) CreateESP(p) end)
 end)
 
 Players.PlayerRemoving:Connect(RemoveESP)
 
--- Create ESP for existing players
-for _, player in ipairs(Players:GetPlayers()) do
-    if player.Character then
-        CreateESP(player)
-    end
-    
-    -- Connect to future character spawns
-    player.CharacterAdded:Connect(function(character)
-        task.wait(0.1)
-        CreateESP(player)
-    end)
-    
-    player.CharacterRemoving:Connect(function()
-        RemoveESP(player)
-    end)
+-- Initial Load
+for _, p in ipairs(Players:GetPlayers()) do
+    if p.Character then CreateESP(p) end
+    p.CharacterAdded:Connect(function() task.wait(0.2) CreateESP(p) end)
 end
 
--- Optimized update loop
-RunService.Heartbeat:Connect(function()
-    local currentTime = tick()
-    if currentTime - lastCheck >= 15 then
-        lastCheck = currentTime
-        for _, player in ipairs(Players:GetPlayers()) do
-            if not ESPData[player] and player.Character then
-                CreateESP(player)
-            end
-        end
-    end
-    for _, player in ipairs(Players:GetPlayers()) do
-        UpdateESP(player)
+RunService.RenderStepped:Connect(function()
+    for _, p in ipairs(Players:GetPlayers()) do
+        UpdateESP(p)
     end
 end)
+
+print("AXIOS ESP Loaded | Press 'P' for GUI")
