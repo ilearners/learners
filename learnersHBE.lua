@@ -1,4 +1,4 @@
--- Learners Hitbox Extender
+-- Learners Hitbox Extender | RESTORED WORKING VERSION
 -- Toggle GUI: PageDown | Toggle Hitbox: PageUp
 
 local Players = game:GetService("Players")
@@ -12,7 +12,7 @@ local Settings = {
     HitboxSize = 5.5,
     Transparency = 0.9,
     TeamCheck = true,
-    TargetPart = "HumanoidRootPart" -- "Head" or "HumanoidRootPart"
+    TargetPart = "HumanoidRootPart" 
 }
 
 local GuiVisible = true
@@ -32,9 +32,7 @@ MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
 MainFrame.Draggable = true
 MainFrame.Parent = ScreenGui
-
-local UICorner = Instance.new("UICorner", MainFrame)
-UICorner.CornerRadius = UDim.new(0, 8)
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
 
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 0, 45)
@@ -42,7 +40,7 @@ Title.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 Title.Text = "Learners | HBE"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.Font = Enum.Font.GothamBold
-Title.TextSize = 20 -- Increased
+Title.TextSize = 20
 Title.Parent = MainFrame
 Instance.new("UICorner", Title).CornerRadius = UDim.new(0, 8)
 
@@ -53,7 +51,7 @@ StatusLabel.BackgroundTransparency = 1
 StatusLabel.Text = "Status: Disabled"
 StatusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
 StatusLabel.Font = Enum.Font.GothamBold
-StatusLabel.TextSize = 16 -- Increased
+StatusLabel.TextSize = 16
 StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
 StatusLabel.Parent = MainFrame
 
@@ -93,7 +91,6 @@ local function CreateSlider(name, pos, defaultVal, min, max, isSize, callback)
         Label.Text = name .. ": " .. finalVal
         callback(finalVal)
     end
-
     Slider.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true update(i) end end)
     UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end end)
     UserInputService.InputChanged:Connect(function(i) if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then update(i) end end)
@@ -111,7 +108,7 @@ local function CreateButton(text, pos, color, callback)
     Btn.Text = text
     Btn.TextColor3 = Color3.new(1,1,1)
     Btn.Font = Enum.Font.GothamBold
-    Btn.TextSize = 15 -- Bigger text
+    Btn.TextSize = 15
     Btn.Parent = MainFrame
     Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 6)
     Btn.MouseButton1Click:Connect(function() callback(Btn) end)
@@ -124,63 +121,35 @@ CreateButton("Team Check: ON", UDim2.new(0, 10, 0, 210), Color3.fromRGB(100, 200
 end)
 
 CreateButton("Target: RootPart", UDim2.new(0, 10, 0, 255), Color3.fromRGB(120, 80, 200), function(b)
-    if Settings.TargetPart == "HumanoidRootPart" then
-        Settings.TargetPart = "Head"
-        b.Text = "Target: Head"
-        b.BackgroundColor3 = Color3.fromRGB(200, 80, 80)
-    else
-        Settings.TargetPart = "HumanoidRootPart"
-        b.Text = "Target: RootPart"
-        b.BackgroundColor3 = Color3.fromRGB(120, 80, 200)
-    end
+    Settings.TargetPart = (Settings.TargetPart == "HumanoidRootPart") and "Head" or "HumanoidRootPart"
+    b.Text = "Target: " .. (Settings.TargetPart == "Head" and "Head" or "RootPart")
+    b.BackgroundColor3 = (Settings.TargetPart == "Head") and Color3.fromRGB(200, 80, 80) or Color3.fromRGB(120, 80, 200)
 end)
 
-local Footer = Instance.new("TextLabel")
-Footer.Size = UDim2.new(1, 0, 0, 20)
-Footer.Position = UDim2.new(0, 0, 1, -25)
-Footer.BackgroundTransparency = 1
-Footer.Text = "Press 'PageDown' to Toggle GUI"
-Footer.TextColor3 = Color3.fromRGB(150, 150, 150)
-Footer.Font = Enum.Font.Gotham
-Footer.TextSize = 13 -- Fixed size
-Footer.Parent = MainFrame
-
--- // CORE LOGIC (PHYSICS FIX) // --
+-- // THE CORE LOOP (BACK TO BASICS) // --
 task.spawn(function()
     while task.wait(0.1) do
         for _, player in ipairs(Players:GetPlayers()) do
             if player ~= LocalPlayer and player.Character then
-                local head = player.Character:FindFirstChild("Head")
                 local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+                local head = player.Character:FindFirstChild("Head")
                 
-                if head and hrp then
+                if hrp and head then
                     local isTeammate = Settings.TeamCheck and player.Team == LocalPlayer.Team
                     
                     if Settings.Enabled and not isTeammate then
                         local target = (Settings.TargetPart == "Head") and head or hrp
-                        local other = (Settings.TargetPart == "Head") and hrp or head
                         
-                        -- PHYSICS FIX: Make target Massless to prevent character floating/freezing
-                        target.Massless = true
+                        -- DIRECT MODIFICATION (This is the logic that works for damage)
                         target.Size = Vector3.new(Settings.HitboxSize, Settings.HitboxSize, Settings.HitboxSize)
                         target.Transparency = Settings.Transparency
                         target.CanCollide = false
-                        target.Material = Enum.Material.ForceField
-                        
-                        -- Reset the one we aren't using
-                        if other == head then
-                            other.Size = Vector3.new(2,1,1)
-                            other.Transparency = 0
-                        else
-                            other.Size = Vector3.new(2,2,1)
-                            other.Transparency = 1
-                        end
                     else
-                        -- Complete Reset
-                        head.Size = Vector3.new(2,1,1)
-                        head.Transparency = 0
-                        hrp.Size = Vector3.new(2,2,1)
+                        -- SIMPLE RESET (Prevents freezing by not touching extra properties)
+                        hrp.Size = Vector3.new(2, 2, 1)
                         hrp.Transparency = 1
+                        head.Size = Vector3.new(2, 1, 1)
+                        head.Transparency = 0
                     end
                 end
             end
@@ -188,6 +157,7 @@ task.spawn(function()
     end
 end)
 
+-- // INPUT HANDLING // --
 UserInputService.InputBegan:Connect(function(input, processed)
     if processed then return end
     if input.KeyCode == Enum.KeyCode.PageDown then 
