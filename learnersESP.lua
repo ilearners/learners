@@ -1,10 +1,11 @@
 -- Learners ESP
--- Toggle GUI: P
+-- Toggle GUI: PageDown
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local Camera = workspace.CurrentCamera
 
 -- Settings
 local ESPEnabled = true
@@ -83,50 +84,36 @@ local function CreateLearnerButton(text, pos, enabled, callback)
     return Btn
 end
 
-CreateLearnerButton("Master ESP", UDim2.new(0, 10, 0, 90), ESPEnabled, function()
-    ESPEnabled = not ESPEnabled
-    return ESPEnabled
-end)
-
-CreateLearnerButton("Show Names", UDim2.new(0, 10, 0, 130), ShowNames, function()
-    ShowNames = not ShowNames
-    return ShowNames
-end)
-
-CreateLearnerButton("Show Health", UDim2.new(0, 10, 0, 170), ShowHealth, function()
-    ShowHealth = not ShowHealth
-    return ShowHealth
-end)
-
-CreateLearnerButton("Team Check", UDim2.new(0, 10, 0, 210), TeamCheck, function()
-    TeamCheck = not TeamCheck
-    return TeamCheck
-end)
+CreateLearnerButton("Master ESP", UDim2.new(0, 10, 0, 90), ESPEnabled, function() ESPEnabled = not ESPEnabled return ESPEnabled end)
+CreateLearnerButton("Show Names", UDim2.new(0, 10, 0, 130), ShowNames, function() ShowNames = not ShowNames return ShowNames end)
+CreateLearnerButton("Show Health", UDim2.new(0, 10, 0, 170), ShowHealth, function() ShowHealth = not ShowHealth return ShowHealth end)
+CreateLearnerButton("Team Check", UDim2.new(0, 10, 0, 210), TeamCheck, function() TeamCheck = not TeamCheck return TeamCheck end)
 
 local Footer = Instance.new("TextLabel")
 Footer.Size = UDim2.new(1, 0, 0, 20)
 Footer.Position = UDim2.new(0, 0, 1, -25)
 Footer.BackgroundTransparency = 1
-Footer.Text = "Press 'P' to Toggle GUI"
+Footer.Text = "Press 'PageDown' to Toggle GUI"
 Footer.TextColor3 = Color3.fromRGB(150, 150, 150)
 Footer.Font = Enum.Font.Gotham
 Footer.TextSize = 12
 Footer.Parent = MainFrame
 
--- // OPTIMIZED CORE LOGIC // --
+-- // LOGIC OPTIMIZATIONS // --
 
 local function CreateESPData(player)
-    local data = {}
+    local data = {
+        highlight = Instance.new("Highlight"),
+        billboard = Instance.new("BillboardGui")
+    }
     
-    local hl = Instance.new("Highlight")
-    hl.FillTransparency = 1
-    hl.OutlineColor = Color3.fromRGB(255, 0, 0)
-    hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    data.highlight.FillTransparency = 1
+    data.highlight.OutlineColor = Color3.fromRGB(255, 0, 0)
+    data.highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
     
-    local bb = Instance.new("BillboardGui")
-    bb.Size = UDim2.new(0, 200, 0, 60)
-    bb.StudsOffset = Vector3.new(0, 3, 0)
-    bb.AlwaysOnTop = true
+    data.billboard.Size = UDim2.new(0, 200, 0, 60)
+    data.billboard.StudsOffset = Vector3.new(0, 3, 0)
+    data.billboard.AlwaysOnTop = true
 
     local nl = Instance.new("TextLabel")
     nl.Size = UDim2.new(1, 0, 0.5, 0)
@@ -135,7 +122,8 @@ local function CreateESPData(player)
     nl.Font = Enum.Font.GothamBold
     nl.TextSize = 14
     nl.TextStrokeTransparency = 0
-    nl.Parent = bb
+    nl.Parent = data.billboard
+    data.nameLabel = nl
 
     local hll = Instance.new("TextLabel")
     hll.Size = UDim2.new(1, 0, 0.5, 0)
@@ -144,83 +132,79 @@ local function CreateESPData(player)
     hll.Font = Enum.Font.Gotham
     hll.TextSize = 13
     hll.TextStrokeTransparency = 0
-    hll.Parent = bb
-
-    data.highlight = hl
-    data.billboard = bb
-    data.nameLabel = nl
+    hll.Parent = data.billboard
     data.healthLabel = hll
-    
+
     ESPData[player] = data
 end
 
--- RenderStepped is used for smooth visual updates
-RunService.RenderStepped:Connect(function()
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player == LocalPlayer then continue end
+task.spawn(function()
+    while task.wait(0.03) do
+        local camPos = Camera.CFrame.Position -- Cache cam position for the frame
         
-        -- Create data only once per player session
-        local data = ESPData[player]
-        if not data then 
-            CreateESPData(player) 
-            data = ESPData[player] 
-        end
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player == LocalPlayer then continue end
+            
+            local data = ESPData[player]
+            if not data then CreateESPData(player) data = ESPData[player] end
 
-        local char = player.Character
-        local hrp = char and char:FindFirstChild("HumanoidRootPart")
-        local hum = char and char:FindFirstChild("Humanoid")
+            local char = player.Character
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            local hum = char and char:FindFirstChild("Humanoid")
 
-        -- Visibility Logic
-        local isTeammate = TeamCheck and player.Team == LocalPlayer.Team
-        local shouldShow = ESPEnabled and char and hrp and hum and not isTeammate
-        
-        if shouldShow then
-            local dist = (workspace.CurrentCamera.CFrame.Position - hrp.Position).Magnitude
-            if dist <= MaxDistance then
-                -- Attach visuals
-                data.highlight.Enabled = true
-                data.highlight.Adornee = char
-                data.highlight.Parent = char
+            local isTeammate = TeamCheck and player.Team == LocalPlayer.Team
+            local shouldShow = ESPEnabled and char and hrp and hum and not isTeammate
+            
+            if shouldShow then
+                local dist = (camPos - hrp.Position).Magnitude
+                if dist <= MaxDistance then
+                    -- ONLY parent if parent has changed (Crucial for RAM)
+                    if data.highlight.Parent ~= char then data.highlight.Parent = char end
+                    if data.billboard.Parent ~= char then data.billboard.Parent = char end
+                    
+                    data.highlight.Enabled = true
+                    data.highlight.Adornee = char
+                    data.highlight.OutlineTransparency = math.clamp(dist / 500, 0, 0.8)
 
-                data.billboard.Enabled = true
-                data.billboard.Adornee = hrp
-                data.billboard.Parent = char
+                    data.billboard.Enabled = true
+                    data.billboard.Adornee = hrp
 
-                -- Update Content
-                data.nameLabel.Visible = ShowNames
-                data.nameLabel.Text = player.Name
-                
-                if ShowHealth then
-                    data.healthLabel.Visible = true
-                    data.healthLabel.Text = math.floor(hum.Health) .. " HP"
-                    data.healthLabel.TextColor3 = Color3.fromHSV((hum.Health/hum.MaxHealth) * 0.3, 1, 1)
+                    data.nameLabel.Visible = ShowNames
+                    data.nameLabel.Text = player.Name
+                    
+                    if ShowHealth then
+                        data.healthLabel.Visible = true
+                        data.healthLabel.Text = math.floor(hum.Health) .. " HP"
+                        data.healthLabel.TextColor3 = Color3.fromHSV((hum.Health/hum.MaxHealth) * 0.3, 1, 1)
+                    else
+                        data.healthLabel.Visible = false
+                    end
                 else
-                    data.healthLabel.Visible = false
+                    shouldShow = false
                 end
-            else
-                shouldShow = false -- Out of distance range
             end
-        end
 
-        -- Clean up if they shouldn't be seen (or died)
-        if not shouldShow then
-            data.highlight.Enabled = false
-            data.billboard.Enabled = false
+            if not shouldShow then
+                data.highlight.Enabled = false
+                data.billboard.Enabled = false
+                -- Move back to nil only when necessary to stop rendering
+                data.highlight.Parent = nil
+                data.billboard.Parent = nil
+            end
         end
     end
 end)
 
--- Clean up memory when players leave
 Players.PlayerRemoving:Connect(function(player)
     if ESPData[player] then
-        if ESPData[player].highlight then ESPData[player].highlight:Destroy() end
-        if ESPData[player].billboard then ESPData[player].billboard:Destroy() end
+        data.highlight:Destroy()
+        data.billboard:Destroy()
         ESPData[player] = nil
     end
 end)
 
 UserInputService.InputBegan:Connect(function(input, processed)
-    if not processed and input.KeyCode == Enum.KeyCode.P then
+    if not processed and input.KeyCode == Enum.KeyCode.PageDown then
         GuiVisible = not GuiVisible
         ScreenGui.Enabled = GuiVisible
     end
