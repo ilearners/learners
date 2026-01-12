@@ -220,7 +220,7 @@ VisualizeBtn.MouseButton1Click:Connect(function()
     VisualizeBtn.BackgroundColor3 = Settings.VisualizeHitbox and Color3.fromRGB(100, 200, 100) or Color3.fromRGB(200, 100, 100)
 end)
 
--- Function to modify hitbox
+-- Function to modify hitbox (FIXED FOR DESYNC ISSUE)
 local function ModifyHitbox(character, enable)
     if not character then return end
     
@@ -238,11 +238,13 @@ local function ModifyHitbox(character, enable)
             }
         end
         
-        -- Apply new size
-        targetPart.Size = Vector3.new(Settings.HitboxSize, Settings.HitboxSize, Settings.HitboxSize)
-        targetPart.Transparency = Settings.VisualizeHitbox and Settings.Transparency or 1
+        -- CRITICAL FIX: Set CanCollide to false BEFORE changing size
         targetPart.CanCollide = false
         targetPart.Massless = true
+        
+        -- Apply new size without affecting physics/position
+        targetPart.Size = Vector3.new(Settings.HitboxSize, Settings.HitboxSize, Settings.HitboxSize)
+        targetPart.Transparency = Settings.VisualizeHitbox and Settings.Transparency or 1
         
     else
         -- Restore original properties
@@ -325,7 +327,7 @@ for _, player in ipairs(Players:GetPlayers()) do
     end)
 end
 
--- Update loop (only when enabled)
+-- IMPROVED Update loop with better synchronization handling
 RunService.Heartbeat:Connect(function()
     if Settings.Enabled then
         for _, player in ipairs(Players:GetPlayers()) do
@@ -336,6 +338,10 @@ RunService.Heartbeat:Connect(function()
                     if Settings.TeamCheck and player.Team == LocalPlayer.Team then
                         ModifyHitbox(player.Character, false)
                     else
+                        -- Ensure CanCollide stays false to prevent physics issues
+                        targetPart.CanCollide = false
+                        targetPart.Massless = true
+                        
                         -- Update size and transparency in real-time
                         targetPart.Size = Vector3.new(Settings.HitboxSize, Settings.HitboxSize, Settings.HitboxSize)
                         targetPart.Transparency = Settings.VisualizeHitbox and Settings.Transparency or 1
