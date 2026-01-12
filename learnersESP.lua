@@ -5,6 +5,9 @@
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local GuiVisible = true
+local lastCheck = 0
 
 -- GUI Setup (Simple toggle with options)
 local ScreenGui = Instance.new("ScreenGui")
@@ -80,6 +83,15 @@ HealthToggle.MouseButton1Click:Connect(function()
     ShowHealth = not ShowHealth
     HealthToggle.Text = ShowHealth and "Health: ON" or "Health: OFF"
     HealthToggle.BackgroundColor3 = ShowHealth and Color3.new(0, 1, 0) or Color3.new(1, 0, 0)
+end)
+
+-- Hotkey to toggle GUI
+UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
+    if gameProcessedEvent then return end
+    if input.KeyCode == Enum.KeyCode.P then
+        GuiVisible = not GuiVisible
+        ScreenGui.Enabled = GuiVisible
+    end
 end)
 
 -- Function to create ESP for a player
