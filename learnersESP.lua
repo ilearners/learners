@@ -1,6 +1,4 @@
--- Advanced Smooth ESP Script
--- Uses Highlight for performance, adds names/health/distance with simple GUI
--- Optimized for smoothness with distance checks and Heartbeat updates
+-- Learners' non annoying ESP script that looks good!
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -9,7 +7,7 @@ local UserInputService = game:GetService("UserInputService")
 local GuiVisible = true
 local lastCheck = 0
 
--- GUI Setup (Simple toggle with options)
+-- GUI Setup
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
@@ -24,7 +22,7 @@ MainFrame.Parent = ScreenGui
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 0, 30)
 Title.Position = UDim2.new(0, 0, 0, 0)
-Title.Text = "ESP Controls"
+Title.Text = "P to toggle GUI"
 Title.BackgroundTransparency = 1
 Title.TextColor3 = Color3.new(1, 1, 1)
 Title.Font = Enum.Font.SourceSansBold
@@ -85,7 +83,7 @@ HealthToggle.MouseButton1Click:Connect(function()
     HealthToggle.BackgroundColor3 = ShowHealth and Color3.new(0, 1, 0) or Color3.new(1, 0, 0)
 end)
 
--- Hotkey to toggle GUI
+-- Hotkey to toggle GUI (P)
 UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
     if gameProcessedEvent then return end
     if input.KeyCode == Enum.KeyCode.P then
@@ -278,5 +276,3 @@ RunService.Heartbeat:Connect(function()
         UpdateESP(player)
     end
 end)
-
-print("Advanced Smooth ESP loaded! Uses Highlight for performance with names and health.")
