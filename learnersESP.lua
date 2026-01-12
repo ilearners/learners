@@ -96,29 +96,34 @@ end)
 
 -- Function to create ESP for a player
 local function CreateESP(player)
-    if player == LocalPlayer or ESPData[player] then return end
+    if player == LocalPlayer then return end
 
     local character = player.Character
     if not character then return end
 
+    -- Remove old ESP if it exists
+    if ESPData[player] then
+        RemoveESP(player)
+    end
+
     local data = {
-        highlights = {},
+        highlight = nil,
         billboard = Instance.new("BillboardGui"),
         nameLabel = Instance.new("TextLabel"),
         healthLabel = Instance.new("TextLabel")
     }
 
-    -- Highlight setup
+    -- Highlight setup - ONLY OUTLINE, NO FILL
     local highlight = Instance.new("Highlight")
     highlight.Adornee = character
     highlight.Enabled = false
     highlight.FillColor = Color3.new(1, 0, 0)
     highlight.OutlineColor = Color3.new(1, 0, 0)
-    highlight.FillTransparency = 0.5
-    highlight.OutlineTransparency = 0
+    highlight.FillTransparency = 1  -- Fully transparent fill (no fill visible)
+    highlight.OutlineTransparency = 0  -- Fully opaque outline
     highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
     highlight.Parent = character
-    table.insert(data.highlights, highlight)
+    data.highlight = highlight
 
     -- Billboard setup
     data.billboard.Size = UDim2.new(0, 200, 0, 60)
@@ -149,7 +154,7 @@ local function CreateESP(player)
     data.healthLabel.TextStrokeTransparency = 0
     data.healthLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
     data.healthLabel.Text = "HP: 100/100"
-    data.healthLabel.Parent = data.healthLabel.Parent = data.billboard
+    data.healthLabel.Parent = data.billboard
 
     ESPData[player] = data
 end
@@ -157,8 +162,11 @@ end
 -- Function to remove ESP for a player
 local function RemoveESP(player)
     if ESPData[player] then
-        for _, highlight in ipairs(ESPData[player].highlights) do
-            highlight:Destroy()
+        if ESPData[player].highlight then
+            ESPData[player].highlight:Destroy()
+        end
+        if ESPData[player].billboard then
+            ESPData[player].billboard:Destroy()
         end
         ESPData[player] = nil
     end
@@ -171,8 +179,8 @@ local function UpdateESP(player)
 
     local character = player.Character
     if not character or not character:FindFirstChild("HumanoidRootPart") then
-        for _, highlight in ipairs(data.highlights) do
-            highlight.Enabled = false
+        if data.highlight then
+            data.highlight.Enabled = false
         end
         data.billboard.Enabled = false
         return
@@ -181,8 +189,8 @@ local function UpdateESP(player)
     local humanoidRootPart = character.HumanoidRootPart
     local humanoid = character:FindFirstChild("Humanoid")
     if not humanoid then
-        for _, highlight in ipairs(data.highlights) do
-            highlight.Enabled = false
+        if data.highlight then
+            data.highlight.Enabled = false
         end
         data.billboard.Enabled = false
         return
@@ -191,17 +199,17 @@ local function UpdateESP(player)
     -- Distance check
     local distance = (workspace.CurrentCamera.CFrame.Position - humanoidRootPart.Position).Magnitude
     if distance > MaxDistance then
-        for _, highlight in ipairs(data.highlights) do
-            highlight.Enabled = false
+        if data.highlight then
+            data.highlight.Enabled = false
         end
         data.billboard.Enabled = false
         return
     end
 
-    -- Update highlights
-    for _, highlight in ipairs(data.highlights) do
-        highlight.Adornee = character
-        highlight.Enabled = ESPEnabled
+    -- Update highlight
+    if data.highlight then
+        data.highlight.Adornee = character
+        data.highlight.Enabled = ESPEnabled
     end
 
     -- Update billboard
@@ -224,12 +232,35 @@ local function UpdateESP(player)
 end
 
 -- Connect to player events
-Players.PlayerAdded:Connect(CreateESP)
+Players.PlayerAdded:Connect(function(player)
+    -- Wait for character to load
+    player.CharacterAdded:Connect(function(character)
+        task.wait(0.1) -- Small delay to ensure character is fully loaded
+        CreateESP(player)
+    end)
+
+    player.CharacterRemoving:Connect(function()
+        RemoveESP(player)
+    end)
+end)
+
 Players.PlayerRemoving:Connect(RemoveESP)
 
 -- Create ESP for existing players
 for _, player in ipairs(Players:GetPlayers()) do
-    CreateESP(player)
+    if player.Character then
+        CreateESP(player)
+    end
+    
+    -- Connect to future character spawns
+    player.CharacterAdded:Connect(function(character)
+        task.wait(0.1)
+        CreateESP(player)
+    end)
+    
+    player.CharacterRemoving:Connect(function()
+        RemoveESP(player)
+    end)
 end
 
 -- Optimized update loop
@@ -238,7 +269,7 @@ RunService.Heartbeat:Connect(function()
     if currentTime - lastCheck >= 15 then
         lastCheck = currentTime
         for _, player in ipairs(Players:GetPlayers()) do
-            if not ESPData[player] then
+            if not ESPData[player] and player.Character then
                 CreateESP(player)
             end
         end
@@ -246,24 +277,6 @@ RunService.Heartbeat:Connect(function()
     for _, player in ipairs(Players:GetPlayers()) do
         UpdateESP(player)
     end
-end)
-
--- Handle character changes
-Players.PlayerAdded:Connect(function(player)
-    player.CharacterAdded:Connect(function(character)
-        if ESPData[player] then
-            ESPData[player].Highlight.Adornee = character
-        else
-            CreateESP(player)
-        end
-    end)
-
-    player.CharacterRemoving:Connect(function()
-        if ESPData[player] then
-            ESPData[player].Highlight.Adornee = nil
-            ESPData[player].Billboard.Enabled = false
-        end
-    end)
 end)
 
 print("Advanced Smooth ESP loaded! Uses Highlight for performance with names and health.")
