@@ -1,5 +1,5 @@
 -- Learners ESP | Auto-Thickness & Original UI Restored
--- Toggle GUI: P
+-- Toggle GUI: PageDown
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -93,7 +93,7 @@ local Footer = Instance.new("TextLabel")
 Footer.Size = UDim2.new(1, 0, 0, 20)
 Footer.Position = UDim2.new(0, 0, 1, -25)
 Footer.BackgroundTransparency = 1
-Footer.Text = "Press 'P' to Toggle GUI"
+Footer.Text = "Press 'PageDown' to Toggle GUI"
 Footer.TextColor3 = Color3.fromRGB(150, 150, 150)
 Footer.Font = Enum.Font.Gotham
 Footer.TextSize = 12
@@ -202,7 +202,7 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 UserInputService.InputBegan:Connect(function(input, processed)
-    if not processed and input.KeyCode == Enum.KeyCode.P then
+    if not processed and input.KeyCode == Enum.KeyCode.PageDown then
         GuiVisible = not GuiVisible
         ScreenGui.Enabled = GuiVisible
     end
