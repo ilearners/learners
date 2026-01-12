@@ -102,52 +102,54 @@ local function CreateESP(player)
     if not character then return end
 
     local data = {
-        Highlight = Instance.new("Highlight"),
-        Billboard = Instance.new("BillboardGui"),
-        NameLabel = Instance.new("TextLabel"),
-        HealthLabel = Instance.new("TextLabel")
+        highlights = {},
+        billboard = Instance.new("BillboardGui"),
+        nameLabel = Instance.new("TextLabel"),
+        healthLabel = Instance.new("TextLabel")
     }
 
     -- Highlight setup
-    data.Highlight.Adornee = character
-    data.Highlight.Enabled = false
-    data.Highlight.FillColor = Color3.new(1, 0, 0)
-    data.Highlight.OutlineColor = Color3.new(1, 0, 0)
-    data.Highlight.FillTransparency = 0.5
-    data.Highlight.OutlineTransparency = 0
-    data.Highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    data.Highlight.Parent = character
+    local highlight = Instance.new("Highlight")
+    highlight.Adornee = character
+    highlight.Enabled = false
+    highlight.FillColor = Color3.new(1, 0, 0)
+    highlight.OutlineColor = Color3.new(1, 0, 0)
+    highlight.FillTransparency = 0.5
+    highlight.OutlineTransparency = 0
+    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    highlight.Parent = character
+    table.insert(data.highlights, highlight)
 
     -- Billboard setup
-    data.Billboard.Size = UDim2.new(0, 200, 0, 60)
-    data.Billboard.StudsOffset = Vector3.new(0, 3, 0)
-    data.Billboard.AlwaysOnTop = true
-    data.Billboard.Enabled = false
-    data.Billboard.Parent = character
+    data.billboard.Size = UDim2.new(0, 200, 0, 60)
+    data.billboard.StudsOffset = Vector3.new(0, 3, 0)
+    data.billboard.AlwaysOnTop = true
+    data.billboard.Enabled = false
+    data.billboard.Parent = character
 
     -- Name label
-    data.NameLabel.Size = UDim2.new(1, 0, 0.5, 0)
-    data.NameLabel.Position = UDim2.new(0, 0, 0, 0)
-    data.NameLabel.BackgroundTransparency = 1
-    data.NameLabel.TextColor3 = Color3.new(1, 1, 1)
-    data.NameLabel.Font = Enum.Font.SourceSansBold
-    data.NameLabel.TextSize = 16
-    data.NameLabel.TextStrokeTransparency = 0
-    data.NameLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
-    data.NameLabel.Text = player.Name
-    data.NameLabel.Parent = data.Billboard
+    data.nameLabel.Size = UDim2.new(1, 0, 0.5, 0)
+    data.nameLabel.Position = UDim2.new(0, 0, 0, 0)
+    data.nameLabel.BackgroundTransparency = 1
+    data.nameLabel.TextColor3 = Color3.new(1, 1, 1)
+    data.nameLabel.Font = Enum.Font.SourceSansBold
+    data.nameLabel.TextSize = 16
+    data.nameLabel.TextStrokeTransparency = 0
+    data.nameLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+    data.nameLabel.Text = player.Name
+    data.nameLabel.Parent = data.billboard
 
     -- Health label
-    data.HealthLabel.Size = UDim2.new(1, 0, 0.5, 0)
-    data.HealthLabel.Position = UDim2.new(0, 0, 0.5, 0)
-    data.HealthLabel.BackgroundTransparency = 1
-    data.HealthLabel.TextColor3 = Color3.new(0, 1, 0)
-    data.HealthLabel.Font = Enum.Font.SourceSans
-    data.HealthLabel.TextSize = 14
-    data.HealthLabel.TextStrokeTransparency = 0
-    data.HealthLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
-    data.HealthLabel.Text = "HP: 100/100"
-    data.HealthLabel.Parent = data.Billboard
+    data.healthLabel.Size = UDim2.new(1, 0, 0.5, 0)
+    data.healthLabel.Position = UDim2.new(0, 0, 0.5, 0)
+    data.healthLabel.BackgroundTransparency = 1
+    data.healthLabel.TextColor3 = Color3.new(0, 1, 0)
+    data.healthLabel.Font = Enum.Font.SourceSans
+    data.healthLabel.TextSize = 14
+    data.healthLabel.TextStrokeTransparency = 0
+    data.healthLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+    data.healthLabel.Text = "HP: 100/100"
+    data.healthLabel.Parent = data.healthLabel.Parent = data.billboard
 
     ESPData[player] = data
 end
@@ -155,7 +157,9 @@ end
 -- Function to remove ESP for a player
 local function RemoveESP(player)
     if ESPData[player] then
-        ESPData[player].Highlight:Destroy()
+        for _, highlight in ipairs(ESPData[player].highlights) do
+            highlight:Destroy()
+        end
         ESPData[player] = nil
     end
 end
@@ -167,47 +171,55 @@ local function UpdateESP(player)
 
     local character = player.Character
     if not character or not character:FindFirstChild("HumanoidRootPart") then
-        data.Highlight.Enabled = false
-        data.Billboard.Enabled = false
+        for _, highlight in ipairs(data.highlights) do
+            highlight.Enabled = false
+        end
+        data.billboard.Enabled = false
         return
     end
 
     local humanoidRootPart = character.HumanoidRootPart
     local humanoid = character:FindFirstChild("Humanoid")
     if not humanoid then
-        data.Highlight.Enabled = false
-        data.Billboard.Enabled = false
+        for _, highlight in ipairs(data.highlights) do
+            highlight.Enabled = false
+        end
+        data.billboard.Enabled = false
         return
     end
 
     -- Distance check
     local distance = (workspace.CurrentCamera.CFrame.Position - humanoidRootPart.Position).Magnitude
     if distance > MaxDistance then
-        data.Highlight.Enabled = false
-        data.Billboard.Enabled = false
+        for _, highlight in ipairs(data.highlights) do
+            highlight.Enabled = false
+        end
+        data.billboard.Enabled = false
         return
     end
 
-    -- Update highlight
-    data.Highlight.Adornee = character
-    data.Highlight.Enabled = ESPEnabled
+    -- Update highlights
+    for _, highlight in ipairs(data.highlights) do
+        highlight.Adornee = character
+        highlight.Enabled = ESPEnabled
+    end
 
     -- Update billboard
-    data.Billboard.Adornee = humanoidRootPart
-    data.Billboard.Enabled = ESPEnabled and (ShowNames or ShowHealth)
+    data.billboard.Adornee = humanoidRootPart
+    data.billboard.Enabled = ESPEnabled and (ShowNames or ShowHealth)
 
     -- Update labels
-    data.NameLabel.Visible = ShowNames
-    data.NameLabel.Text = player.Name
+    data.nameLabel.Visible = ShowNames
+    data.nameLabel.Text = player.Name
 
     if ShowHealth then
         local healthPercent = humanoid.Health / humanoid.MaxHealth
         local healthColor = Color3.new(1 - healthPercent, healthPercent, 0)
-        data.HealthLabel.TextColor3 = healthColor
-        data.HealthLabel.Text = string.format("HP: %d/%d", math.floor(humanoid.Health), math.floor(humanoid.MaxHealth))
-        data.HealthLabel.Visible = true
+        data.healthLabel.TextColor3 = healthColor
+        data.healthLabel.Text = string.format("HP: %d/%d", math.floor(humanoid.Health), math.floor(humanoid.MaxHealth))
+        data.healthLabel.Visible = true
     else
-        data.HealthLabel.Visible = false
+        data.healthLabel.Visible = false
     end
 end
 
@@ -222,6 +234,15 @@ end
 
 -- Optimized update loop
 RunService.Heartbeat:Connect(function()
+    local currentTime = tick()
+    if currentTime - lastCheck >= 15 then
+        lastCheck = currentTime
+        for _, player in ipairs(Players:GetPlayers()) do
+            if not ESPData[player] then
+                CreateESP(player)
+            end
+        end
+    end
     for _, player in ipairs(Players:GetPlayers()) do
         UpdateESP(player)
     end
