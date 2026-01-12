@@ -1,4 +1,4 @@
--- Clean Performance-Friendly Hitbox Extender
+-- Performance-Friendly Hitbox Extender (Hit-Registration Fix)
 -- Toggle GUI: L | Toggle Hitbox: PageDown
 
 local Players = game:GetService("Players")
@@ -17,7 +17,7 @@ local Settings = {
 
 local HitboxParts = {}
 
--- // GUI CONSTRUCTION (EXACT STYLE) // --
+-- // GUI CONSTRUCTION // --
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "HitboxExtenderGUI"
 ScreenGui.ResetOnSpawn = false
@@ -80,20 +80,13 @@ SizeSlider.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 SizeSlider.BorderSizePixel = 0
 SizeSlider.Text = ""
 SizeSlider.Parent = MainFrame
-
-local SliderCorner = Instance.new("UICorner")
-SliderCorner.CornerRadius = UDim.new(0, 4)
-SliderCorner.Parent = SizeSlider
+Instance.new("UICorner", SizeSlider).CornerRadius = UDim.new(0, 4)
 
 local SliderFill = Instance.new("Frame")
 SliderFill.Size = UDim2.new(0.5, 0, 1, 0)
 SliderFill.BackgroundColor3 = Color3.fromRGB(100, 150, 255)
-SliderFill.BorderSizePixel = 0
 SliderFill.Parent = SizeSlider
-
-local FillCorner = Instance.new("UICorner")
-FillCorner.CornerRadius = UDim.new(0, 4)
-FillCorner.Parent = SliderFill
+Instance.new("UICorner", SliderFill).CornerRadius = UDim.new(0, 4)
 
 local TransLabel = Instance.new("TextLabel")
 TransLabel.Size = UDim2.new(1, -20, 0, 25)
@@ -110,23 +103,15 @@ local TransSlider = Instance.new("TextButton")
 TransSlider.Size = UDim2.new(1, -20, 0, 20)
 TransSlider.Position = UDim2.new(0, 10, 0, 180)
 TransSlider.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-TransSlider.BorderSizePixel = 0
 TransSlider.Text = ""
 TransSlider.Parent = MainFrame
-
-local TransCorner = Instance.new("UICorner")
-TransCorner.CornerRadius = UDim.new(0, 4)
-TransCorner.Parent = TransSlider
+Instance.new("UICorner", TransSlider).CornerRadius = UDim.new(0, 4)
 
 local TransFill = Instance.new("Frame")
 TransFill.Size = UDim2.new(0.5, 0, 1, 0)
 TransFill.BackgroundColor3 = Color3.fromRGB(100, 150, 255)
-TransFill.BorderSizePixel = 0
 TransFill.Parent = TransSlider
-
-local TransFillCorner = Instance.new("UICorner")
-TransFillCorner.CornerRadius = UDim.new(0, 4)
-TransFillCorner.Parent = TransFill
+Instance.new("UICorner", TransFill).CornerRadius = UDim.new(0, 4)
 
 local TeamCheckBtn = Instance.new("TextButton")
 TeamCheckBtn.Size = UDim2.new(1, -20, 0, 35)
@@ -135,12 +120,8 @@ TeamCheckBtn.BackgroundColor3 = Color3.fromRGB(100, 200, 100)
 TeamCheckBtn.Text = "Team Check: ON"
 TeamCheckBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 TeamCheckBtn.Font = Enum.Font.GothamBold
-TeamCheckBtn.TextSize = 14
 TeamCheckBtn.Parent = MainFrame
-
-local TeamBtnCorner = Instance.new("UICorner")
-TeamBtnCorner.CornerRadius = UDim.new(0, 6)
-TeamBtnCorner.Parent = TeamCheckBtn
+Instance.new("UICorner", TeamCheckBtn).CornerRadius = UDim.new(0, 6)
 
 local VisualizeBtn = Instance.new("TextButton")
 VisualizeBtn.Size = UDim2.new(1, -20, 0, 35)
@@ -149,14 +130,10 @@ VisualizeBtn.BackgroundColor3 = Color3.fromRGB(100, 200, 100)
 VisualizeBtn.Text = "Visualize: ON"
 VisualizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 VisualizeBtn.Font = Enum.Font.GothamBold
-VisualizeBtn.TextSize = 14
 VisualizeBtn.Parent = MainFrame
+Instance.new("UICorner", VisualizeBtn).CornerRadius = UDim.new(0, 6)
 
-local VisBtnCorner = Instance.new("UICorner")
-VisBtnCorner.CornerRadius = UDim.new(0, 6)
-VisBtnCorner.Parent = VisualizeBtn
-
--- // CORE LOGIC // --
+-- // LOGIC // --
 
 local function UpdateSlider(slider, fill, min, max, callback)
     local dragging = false
@@ -194,27 +171,25 @@ end)
 
 local function CreateHitbox(player)
     if player == LocalPlayer or not player.Character then return end
-    local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
+    local head = player.Character:FindFirstChild("Head") -- Welding to Head is usually more reliable for guns
+    if not head then return end
 
-    -- Destroy existing if any
     if HitboxParts[player] then HitboxParts[player]:Destroy() end
 
     local hitbox = Instance.new("Part")
-    hitbox.Name = "HumanoidRootPart" -- Naming it this helps some gun systems recognize it
+    hitbox.Name = "Head" -- Renaming to a limb ensures gun scripts identify it as a valid hit target
     hitbox.Size = Vector3.new(Settings.HitboxSize, Settings.HitboxSize, Settings.HitboxSize)
     hitbox.Transparency = Settings.VisualizeHitbox and Settings.Transparency or 1
     hitbox.CanCollide = false
     hitbox.Massless = true
-    hitbox.CanQuery = true -- Ensure bullets can actually detect it
+    hitbox.CanTouch = true  -- Required for some bullet systems
+    hitbox.CanQuery = true  -- Required for Raycast weapons
     hitbox.Material = Enum.Material.ForceField
     hitbox.Color = Color3.fromRGB(255, 0, 0)
-    
-    -- Parenting to the character so gun scripts find the Humanoid
-    hitbox.Parent = player.Character
+    hitbox.Parent = player.Character -- Parent to character so Humanoid is found in Parent
 
     local weld = Instance.new("Weld")
-    weld.Part0 = hrp
+    weld.Part0 = head
     weld.Part1 = hitbox
     weld.C0 = CFrame.new(0, 0, 0)
     weld.Parent = hitbox
