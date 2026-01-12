@@ -1,5 +1,5 @@
--- Learners ESP
--- Toggle GUI: PageDown
+-- Learners ESP | Auto-Thickness & Original UI Restored
+-- Toggle GUI: P
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -16,18 +16,14 @@ local MaxDistance = 1000
 local GuiVisible = true
 local ESPData = {}
 
--- Cache Folder for Highlights (Prevents Memory Leaks)
-local HighlightStorage = Instance.new("Folder")
-HighlightStorage.Name = "Learners_HL_Cache"
-HighlightStorage.Parent = game:GetService("CoreGui") -- Hidden from game scripts
-
--- // GUI CONSTRUCTION // --
+-- // GUI CONSTRUCTION (EXACT ORIGINAL STYLE) // --
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "LearnersESP_GUI"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
 MainFrame.Size = UDim2.new(0, 280, 0, 340)
 MainFrame.Position = UDim2.new(0.5, -140, 0.5, -170)
 MainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
@@ -35,17 +31,35 @@ MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
 MainFrame.Draggable = true
 MainFrame.Parent = ScreenGui
-Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 8)
+UICorner.Parent = MainFrame
 
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 0, 40)
 Title.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+Title.BorderSizePixel = 0
 Title.Text = "Learners | ESP"
-Title.TextColor3 = Color3.new(1, 1, 1)
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.Font = Enum.Font.GothamBold
 Title.TextSize = 18
 Title.Parent = MainFrame
-Instance.new("UICorner", Title).CornerRadius = UDim.new(0, 8)
+
+local TitleCorner = Instance.new("UICorner")
+TitleCorner.CornerRadius = UDim.new(0, 8)
+TitleCorner.Parent = Title
+
+local StatusLabel = Instance.new("TextLabel")
+StatusLabel.Size = UDim2.new(1, -20, 0, 30)
+StatusLabel.Position = UDim2.new(0, 10, 0, 50)
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.Text = "Status: Monitoring"
+StatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+StatusLabel.Font = Enum.Font.GothamBold
+StatusLabel.TextSize = 14
+StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
+StatusLabel.Parent = MainFrame
 
 local function CreateLearnerButton(text, pos, enabled, callback)
     local Btn = Instance.new("TextButton")
@@ -53,16 +67,21 @@ local function CreateLearnerButton(text, pos, enabled, callback)
     Btn.Position = pos
     Btn.BackgroundColor3 = enabled and Color3.fromRGB(100, 200, 100) or Color3.fromRGB(200, 100, 100)
     Btn.Text = text .. (enabled and ": ON" or ": OFF")
-    Btn.TextColor3 = Color3.new(1, 1, 1)
+    Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
     Btn.Font = Enum.Font.GothamBold
+    Btn.TextSize = 14
     Btn.Parent = MainFrame
-    Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 6)
+    
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0, 6)
+    Corner.Parent = Btn
     
     Btn.MouseButton1Click:Connect(function()
         local newState = callback()
         Btn.Text = text .. (newState and ": ON" or ": OFF")
         Btn.BackgroundColor3 = newState and Color3.fromRGB(100, 200, 100) or Color3.fromRGB(200, 100, 100)
     end)
+    return Btn
 end
 
 CreateLearnerButton("Master ESP", UDim2.new(0, 10, 0, 90), ESPEnabled, function() ESPEnabled = not ESPEnabled return ESPEnabled end)
@@ -70,16 +89,24 @@ CreateLearnerButton("Show Names", UDim2.new(0, 10, 0, 130), ShowNames, function(
 CreateLearnerButton("Show Health", UDim2.new(0, 10, 0, 170), ShowHealth, function() ShowHealth = not ShowHealth return ShowHealth end)
 CreateLearnerButton("Team Check", UDim2.new(0, 10, 0, 210), TeamCheck, function() TeamCheck = not TeamCheck return TeamCheck end)
 
--- // OPTIMIZED CORE LOGIC // --
+local Footer = Instance.new("TextLabel")
+Footer.Size = UDim2.new(1, 0, 0, 20)
+Footer.Position = UDim2.new(0, 0, 1, -25)
+Footer.BackgroundTransparency = 1
+Footer.Text = "Press 'P' to Toggle GUI"
+Footer.TextColor3 = Color3.fromRGB(150, 150, 150)
+Footer.Font = Enum.Font.Gotham
+Footer.TextSize = 12
+Footer.Parent = MainFrame
+
+-- // AUTO-THICKNESS CORE LOGIC // --
 
 local function CreateESPData(player)
     local data = {}
-    
     local hl = Instance.new("Highlight")
     hl.FillTransparency = 1
     hl.OutlineColor = Color3.fromRGB(255, 0, 0)
     hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    hl.Parent = HighlightStorage -- Stays here to prevent RAM leaks
     
     local bb = Instance.new("BillboardGui")
     bb.Size = UDim2.new(0, 200, 0, 60)
@@ -92,6 +119,7 @@ local function CreateESPData(player)
     nl.TextColor3 = Color3.new(1, 1, 1)
     nl.Font = Enum.Font.GothamBold
     nl.TextSize = 14
+    nl.TextStrokeTransparency = 0
     nl.Parent = bb
 
     local hll = Instance.new("TextLabel")
@@ -100,6 +128,7 @@ local function CreateESPData(player)
     hll.BackgroundTransparency = 1
     hll.Font = Enum.Font.Gotham
     hll.TextSize = 13
+    hll.TextStrokeTransparency = 0
     hll.Parent = bb
 
     data.highlight = hl
@@ -109,9 +138,9 @@ local function CreateESPData(player)
     ESPData[player] = data
 end
 
--- Managed Loop (Fires 30 times a second - much better for RAM)
+-- Optimized Loop (Fixed wait to prevent RAM frying)
 task.spawn(function()
-    while task.wait(0.033) do
+    while task.wait(0.03) do
         for _, player in ipairs(Players:GetPlayers()) do
             if player == LocalPlayer then continue end
             
@@ -128,9 +157,15 @@ task.spawn(function()
             if shouldShow then
                 local dist = (Camera.CFrame.Position - hrp.Position).Magnitude
                 if dist <= MaxDistance then
+                    -- AUTO-THICKNESS LOGIC:
+                    -- Further away = thinner outline (higher transparency)
+                    local thickness = math.clamp(dist / 500, 0, 0.8) 
+                    
                     data.highlight.Enabled = true
                     data.highlight.Adornee = char
-                    
+                    data.highlight.OutlineTransparency = thickness
+                    data.highlight.Parent = char
+
                     data.billboard.Enabled = true
                     data.billboard.Adornee = hrp
                     data.billboard.Parent = char
@@ -152,7 +187,6 @@ task.spawn(function()
 
             if not shouldShow then
                 data.highlight.Enabled = false
-                data.highlight.Adornee = nil
                 data.billboard.Enabled = false
             end
         end
@@ -161,14 +195,14 @@ end)
 
 Players.PlayerRemoving:Connect(function(player)
     if ESPData[player] then
-        data.highlight:Destroy()
-        data.billboard:Destroy()
+        if ESPData[player].highlight then ESPData[player].highlight:Destroy() end
+        if ESPData[player].billboard then ESPData[player].billboard:Destroy() end
         ESPData[player] = nil
     end
 end)
 
-UserInputService.InputBegan:Connect(function(i, p)
-    if not p and i.KeyCode == Enum.KeyCode.PageDown then
+UserInputService.InputBegan:Connect(function(input, processed)
+    if not processed and input.KeyCode == Enum.KeyCode.P then
         GuiVisible = not GuiVisible
         ScreenGui.Enabled = GuiVisible
     end
