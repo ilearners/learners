@@ -1,4 +1,4 @@
--- Learners ESP
+-- Learners Universal ESP
 -- Toggle GUI: PageDown
 
 local Players = game:GetService("Players")
@@ -12,13 +12,13 @@ local ESPEnabled = true
 local ShowNames = true
 local ShowHealth = true
 local TeamCheck = true
-local MaxDistance = 1000
+local MaxDistance = 2000 -- Increased for universal support
 local GuiVisible = true
 local ESPData = {}
 
 -- // GUI CONSTRUCTION // --
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "LearnersESP_GUI"
+ScreenGui.Name = "LearnersUniversal_GUI"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
@@ -40,7 +40,7 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 0, 40)
 Title.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 Title.BorderSizePixel = 0
-Title.Text = "Learners | ESP"
+Title.Text = "Learners | Universal ESP"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.Font = Enum.Font.GothamBold
 Title.TextSize = 18
@@ -49,17 +49,6 @@ Title.Parent = MainFrame
 local TitleCorner = Instance.new("UICorner")
 TitleCorner.CornerRadius = UDim.new(0, 8)
 TitleCorner.Parent = Title
-
-local StatusLabel = Instance.new("TextLabel")
-StatusLabel.Size = UDim2.new(1, -20, 0, 30)
-StatusLabel.Position = UDim2.new(0, 10, 0, 50)
-StatusLabel.BackgroundTransparency = 1
-StatusLabel.Text = "Status: Monitoring"
-StatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-StatusLabel.Font = Enum.Font.GothamBold
-StatusLabel.TextSize = 14
-StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
-StatusLabel.Parent = MainFrame
 
 local function CreateLearnerButton(text, pos, enabled, callback)
     local Btn = Instance.new("TextButton")
@@ -84,10 +73,10 @@ local function CreateLearnerButton(text, pos, enabled, callback)
     return Btn
 end
 
-CreateLearnerButton("Master ESP", UDim2.new(0, 10, 0, 90), ESPEnabled, function() ESPEnabled = not ESPEnabled return ESPEnabled end)
-CreateLearnerButton("Show Names", UDim2.new(0, 10, 0, 130), ShowNames, function() ShowNames = not ShowNames return ShowNames end)
-CreateLearnerButton("Show Health", UDim2.new(0, 10, 0, 170), ShowHealth, function() ShowHealth = not ShowHealth return ShowHealth end)
-CreateLearnerButton("Team Check", UDim2.new(0, 10, 0, 210), TeamCheck, function() TeamCheck = not TeamCheck return TeamCheck end)
+CreateLearnerButton("Master ESP", UDim2.new(0, 10, 0, 70), ESPEnabled, function() ESPEnabled = not ESPEnabled return ESPEnabled end)
+CreateLearnerButton("Show Names", UDim2.new(0, 10, 0, 115), ShowNames, function() ShowNames = not ShowNames return ShowNames end)
+CreateLearnerButton("Show Health", UDim2.new(0, 10, 0, 160), ShowHealth, function() ShowHealth = not ShowHealth return ShowHealth end)
+CreateLearnerButton("Team Check", UDim2.new(0, 10, 0, 205), TeamCheck, function() TeamCheck = not TeamCheck return TeamCheck end)
 
 local Footer = Instance.new("TextLabel")
 Footer.Size = UDim2.new(1, 0, 0, 20)
@@ -99,7 +88,20 @@ Footer.Font = Enum.Font.Gotham
 Footer.TextSize = 12
 Footer.Parent = MainFrame
 
--- // LOGIC OPTIMIZATIONS // --
+-- // UNIVERSAL LOGIC UPGRADES // --
+
+local function GetCharacterData(player)
+    local char = player.Character
+    if not char then return nil end
+    
+    -- Universal way to get position: Pivot
+    local root = char.PrimaryPart or char:FindFirstChildWhichIsA("BasePart")
+    
+    -- Universal way to get health: Any object of class Humanoid
+    local hum = char:FindFirstChildWhichIsA("Humanoid")
+    
+    return char, root, hum
+end
 
 local function CreateESPData(player)
     local data = {
@@ -108,12 +110,12 @@ local function CreateESPData(player)
     }
     
     data.highlight.FillTransparency = 1
-    data.highlight.OutlineColor = Color3.fromRGB(255, 0, 0)
+    data.highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
     data.highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
     
     data.billboard.Size = UDim2.new(0, 200, 0, 60)
-    data.billboard.StudsOffset = Vector3.new(0, 3, 0)
     data.billboard.AlwaysOnTop = true
+    data.billboard.StudsOffset = Vector3.new(0, 3, 0)
 
     local nl = Instance.new("TextLabel")
     nl.Size = UDim2.new(1, 0, 0.5, 0)
@@ -138,67 +140,65 @@ local function CreateESPData(player)
     ESPData[player] = data
 end
 
-task.spawn(function()
-    while task.wait(0.03) do
-        local camPos = Camera.CFrame.Position -- Cache cam position for the frame
+RunService.Heartbeat:Connect(function()
+    local camPos = Camera.CFrame.Position
+    
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player == LocalPlayer then continue end
         
-        for _, player in ipairs(Players:GetPlayers()) do
-            if player == LocalPlayer then continue end
-            
-            local data = ESPData[player]
-            if not data then CreateESPData(player) data = ESPData[player] end
+        local data = ESPData[player]
+        if not data then CreateESPData(player) data = ESPData[player] end
 
-            local char = player.Character
-            local hrp = char and char:FindFirstChild("HumanoidRootPart")
-            local hum = char and char:FindFirstChild("Humanoid")
+        local char, root, hum = GetCharacterData(player)
+        local isTeammate = TeamCheck and player.Team == LocalPlayer.Team
+        
+        -- Use Pivot if no specific RootPart is found
+        local pivotPos = char and char:GetPivot().Position
+        local shouldShow = ESPEnabled and char and pivotPos and not isTeammate
+        
+        if shouldShow then
+            local dist = (camPos - pivotPos).Magnitude
+            if dist <= MaxDistance then
+                data.highlight.Parent = char
+                data.highlight.Enabled = true
+                
+                data.billboard.Parent = char
+                data.billboard.Adornee = root or char -- Fallback to character model
+                data.billboard.Enabled = true
 
-            local isTeammate = TeamCheck and player.Team == LocalPlayer.Team
-            local shouldShow = ESPEnabled and char and hrp and hum and not isTeammate
-            
-            if shouldShow then
-                local dist = (camPos - hrp.Position).Magnitude
-                if dist <= MaxDistance then
-                    -- ONLY parent if parent has changed (Crucial for RAM)
-                    if data.highlight.Parent ~= char then data.highlight.Parent = char end
-                    if data.billboard.Parent ~= char then data.billboard.Parent = char end
-                    
-                    data.highlight.Enabled = true
-                    data.highlight.Adornee = char
-                    data.highlight.OutlineTransparency = math.clamp(dist / 500, 0, 0.8)
-
-                    data.billboard.Enabled = true
-                    data.billboard.Adornee = hrp
-
-                    data.nameLabel.Visible = ShowNames
-                    data.nameLabel.Text = player.Name
-                    
-                    if ShowHealth then
-                        data.healthLabel.Visible = true
-                        data.healthLabel.Text = math.floor(hum.Health) .. " HP"
-                        data.healthLabel.TextColor3 = Color3.fromHSV((hum.Health/hum.MaxHealth) * 0.3, 1, 1)
-                    else
-                        data.healthLabel.Visible = false
-                    end
+                data.nameLabel.Visible = ShowNames
+                data.nameLabel.Text = player.DisplayName or player.Name
+                
+                if ShowHealth and hum then
+                    data.healthLabel.Visible = true
+                    data.healthLabel.Text = math.floor(hum.Health) .. " / " .. math.floor(hum.MaxHealth)
+                    data.healthLabel.TextColor3 = Color3.fromHSV((hum.Health/hum.MaxHealth) * 0.3, 1, 1)
+                elseif ShowHealth and not hum then
+                    -- Fallback for games without Humanoids
+                    data.healthLabel.Visible = true
+                    data.healthLabel.Text = "Active"
+                    data.healthLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
                 else
-                    shouldShow = false
+                    data.healthLabel.Visible = false
                 end
+            else
+                shouldShow = false
             end
+        end
 
-            if not shouldShow then
-                data.highlight.Enabled = false
-                data.billboard.Enabled = false
-                -- Move back to nil only when necessary to stop rendering
-                data.highlight.Parent = nil
-                data.billboard.Parent = nil
-            end
+        if not shouldShow then
+            data.highlight.Enabled = false
+            data.billboard.Enabled = false
+            data.highlight.Parent = nil
+            data.billboard.Parent = nil
         end
     end
 end)
 
 Players.PlayerRemoving:Connect(function(player)
     if ESPData[player] then
-        data.highlight:Destroy()
-        data.billboard:Destroy()
+        ESPData[player].highlight:Destroy()
+        ESPData[player].billboard:Destroy()
         ESPData[player] = nil
     end
 end)
